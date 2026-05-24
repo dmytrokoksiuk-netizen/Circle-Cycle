@@ -1,7 +1,23 @@
-# Circle-Cycle
+# Circle Cycle
 
-This repository was initialized and configured from the upstream GitHub repository.
+Circle Cycle is a turn-based strategy game built in Python 3.11 with Tkinter.
 
-## Overview
+## Features
 
-A starter README was added to make the repository usable and to establish the `main` branch.
+- Tkinter Canvas-based character rendering
+- JSON-driven characters, abilities, and cards
+- Flat OOP architecture with one class per file
+- Selection screen, battle screen, and card screen flow
+
+## Run locally
+
+```bash
+python main.py
+```
+
+## Project layout
+
+- `game/` — engine and gameplay models
+- `ui/` — Tkinter screens and canvas rendering
+- `data/` — runtime JSON definitions
+- `docs/` — project structure notes

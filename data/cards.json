@@ -1,0 +1,38 @@
+[
+  {
+    "id": "iron_skin",
+    "name": "Iron Skin",
+    "description": "Increase HP by 20 and raise your survivability.",
+    "effect": {"stat": "hp", "value": 20}
+  },
+  {
+    "id": "rage",
+    "name": "Rage",
+    "description": "Boost attack by 10 for the remainder of the battle.",
+    "effect": {"stat": "attack", "value": 10}
+  },
+  {
+    "id": "quick_feet",
+    "name": "Quick Feet",
+    "description": "Increase speed by 5 to take turns sooner.",
+    "effect": {"stat": "speed", "value": 5}
+  },
+  {
+    "id": "full_heal",
+    "name": "Full Heal",
+    "description": "Restore 30 HP to the selected character.",
+    "effect": {"stat": "heal", "value": 30}
+  },
+  {
+    "id": "steel_guard",
+    "name": "Steel Guard",
+    "description": "Grant +15 HP and a temporary shield for the next hit.",
+    "effect": {"stat": "hp", "value": 15}
+  },
+  {
+    "id": "surge",
+    "name": "Surge",
+    "description": "Boost speed by 8 and momentum for the next round.",
+    "effect": {"stat": "speed", "value": 8}
+  }
+]

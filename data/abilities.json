@@ -1,0 +1,50 @@
+[
+  {
+    "id": "punch",
+    "name": "Punch",
+    "type": "normal",
+    "damage": 20,
+    "effect": null,
+    "cooldown": 0
+  },
+  {
+    "id": "quick_jab",
+    "name": "Quick Jab",
+    "type": "normal",
+    "damage": 15,
+    "effect": null,
+    "cooldown": 1
+  },
+  {
+    "id": "fire_spin",
+    "name": "Fire Spin",
+    "type": "special",
+    "damage": 40,
+    "effect": "burn",
+    "cooldown": 2
+  },
+  {
+    "id": "lightning_stab",
+    "name": "Lightning Stab",
+    "type": "special",
+    "damage": 30,
+    "effect": null,
+    "cooldown": 1
+  },
+  {
+    "id": "earthquake",
+    "name": "Earthquake",
+    "type": "ultimate",
+    "damage": 35,
+    "effect": null,
+    "cooldown": 3
+  },
+  {
+    "id": "shield_bash",
+    "name": "Shield Bash",
+    "type": "passive",
+    "damage": 0,
+    "effect": "shield",
+    "cooldown": 2
+  }
+]

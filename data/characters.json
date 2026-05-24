@@ -1,0 +1,32 @@
+[
+  {
+    "id": "ace",
+    "name": "Ace",
+    "size": "small",
+    "hp": 85,
+    "attack": 12,
+    "speed": 18,
+    "color": "#14b8a6",
+    "abilities": ["punch", "fire_spin", "earthquake", "shield_bash"]
+  },
+  {
+    "id": "nova",
+    "name": "Nova",
+    "size": "medium",
+    "hp": 115,
+    "attack": 14,
+    "speed": 12,
+    "color": "#f59e0b",
+    "abilities": ["quick_jab", "lightning_stab", "earthquake", "shield_bash"]
+  },
+  {
+    "id": "stone",
+    "name": "Stone",
+    "size": "large",
+    "hp": 150,
+    "attack": 16,
+    "speed": 8,
+    "color": "#64748b",
+    "abilities": ["punch", "lightning_stab", "earthquake", "shield_bash"]
+  }
+]
