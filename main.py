@@ -1,3 +1,5 @@
-from ui.app import App
+"""Thin launcher for Circle Cycle — delegates to the package entry point."""
 
-App().run()
+from circle_cycle.__main__ import main
+
+main()
