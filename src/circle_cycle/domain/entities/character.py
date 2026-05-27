@@ -22,6 +22,7 @@ class Character:
     color: str
     abilities: list[str]
     current_hp: int = field(init=False)
+    ultimate_charge_count: int = field(default=0)
     status_effects: list[StatusEffect] = field(default_factory=list)
     cooldowns: dict[str, int] = field(default_factory=dict)
 
@@ -53,6 +54,18 @@ class Character:
     def is_alive(self) -> bool:
         """Return whether the character still has HP remaining."""
         return self.current_hp > 0
+
+    def record_special_use(self) -> None:
+        """Advance the ultimate charge counter when a special attack is used."""
+        self.ultimate_charge_count = min(2, self.ultimate_charge_count + 1)
+
+    def can_use_ultimate(self) -> bool:
+        """Return whether the character's ultimate is currently charged."""
+        return self.ultimate_charge_count >= 2
+
+    def consume_ultimate(self) -> None:
+        """Reset the ultimate charge counter after using the ultimate."""
+        self.ultimate_charge_count = 0
 
     def tick_cooldowns(self) -> None:
         """Reduce every cooldown by one turn."""

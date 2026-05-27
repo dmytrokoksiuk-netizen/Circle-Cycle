@@ -12,6 +12,7 @@ from circle_cycle.domain.enums.character_size import CharacterSize
 from circle_cycle.domain.exceptions.battle import (
     AbilityOnCooldownError,
     BattleNotStartedError,
+    InvalidActionError,
 )
 from tests.conftest import InMemoryDataRepository
 
@@ -109,6 +110,29 @@ class TestBattleEngine:
         assert round_ended is True
         assert engine.current_turn_index == 0
         assert engine.round_number == 2
+
+    def test_special_usage_charges_ultimate(self, engine: BattleEngine) -> None:
+        """Using a special attack should build the ultimate charge counter."""
+        attacker = engine.player_team[0]
+        ability = engine.get_ability_by_type(attacker, "special")
+        assert ability is not None
+
+        assert attacker.ultimate_charge_count == 0
+        attacker.record_special_use()
+        assert attacker.ultimate_charge_count == 1
+        attacker.record_special_use()
+        assert attacker.ultimate_charge_count == 2
+        assert attacker.can_use_ultimate() is True
+
+    def test_execute_action_blocks_uncharged_ultimate(self, engine: BattleEngine) -> None:
+        """The ultimate should be unusable until the charge counter is full."""
+        attacker = engine.player_team[0]
+        ability = engine.get_ability_by_type(attacker, "ultimate")
+        assert ability is not None
+
+        targets = engine.get_action_targets(attacker, ability)
+        with pytest.raises(InvalidActionError):
+            engine.execute_action(attacker, ability, targets)
 
 
 class TestCharacterEntity:

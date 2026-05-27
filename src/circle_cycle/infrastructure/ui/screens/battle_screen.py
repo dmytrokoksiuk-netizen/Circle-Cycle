@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Sequence
+from tkinter import messagebox
 from typing import TYPE_CHECKING
 
+from circle_cycle.domain.enums.ability_type import AbilityType
 from circle_cycle.infrastructure.ui.rendering.draw_character import draw_circle_character
 
 if TYPE_CHECKING:
+    from circle_cycle.domain.entities.ability import Ability
+    from circle_cycle.domain.entities.character import Character
     from circle_cycle.infrastructure.ui.app import App
 
 
@@ -18,6 +23,7 @@ class BattleScreen(tk.Frame):
         super().__init__(parent, bg="#111827")
         self.app = app
         self.log_messages: list[str] = []
+        self.damage_numbers: list[dict[str, float | int]] = []
         self._build_layout()
 
     def _build_layout(self) -> None:
@@ -98,6 +104,7 @@ class BattleScreen(tk.Frame):
         for index, character in enumerate(engine.bot_team):
             draw_circle_character(self.canvas, bot_x, 120 + index * 150, character)
 
+        self._draw_damage_numbers()
         self._refresh_buttons()
         self._update_turn_label()
         self._refresh_log()
@@ -127,7 +134,13 @@ class BattleScreen(tk.Frame):
             button.config(state="normal" if is_player_turn else "disabled")
 
             ability = self.app.engine.get_ability_by_type(current, ability_type)
-            if ability is None or current.cooldowns.get(ability.id, 0) > 0:
+            if ability is None:
+                button.config(state="disabled")
+                continue
+
+            if current.cooldowns.get(ability.id, 0) > 0:
+                button.config(state="disabled")
+            if ability.type == AbilityType.ULTIMATE and not current.can_use_ultimate():
                 button.config(state="disabled")
 
     def handle_action(self, ability_type: str) -> None:
@@ -144,14 +157,18 @@ class BattleScreen(tk.Frame):
         if ability is None:
             return
 
+        if not self._show_attack_preview(current, ability):
+            return
+
         targets = engine.get_action_targets(current, ability)
 
         try:
             logs = engine.execute_action(current, ability, targets)
-        except (ValueError, Exception) as error:
+        except Exception as error:
             self._append_logs([str(error)])
             return
 
+        self._spawn_damage_numbers(current, targets, ability)
         self._append_logs(logs)
         winner = engine.check_winner()
         if winner is not None:
@@ -189,6 +206,57 @@ class BattleScreen(tk.Frame):
             return
 
         self.refresh()
+
+    def _show_attack_preview(self, attacker: Character, ability: Ability) -> bool:
+        """Show a simple confirmation dialog with the action summary."""
+        preview = (
+            f"{ability.name}\n\n"
+            f"Damage: {max(0, ability.damage + attacker.attack // 5)}\n"
+            f"Type: {ability.type.value.title()}\n"
+            f"Effect: {getattr(ability.effect, 'value', ability.effect) or 'None'}"
+        )
+        result = messagebox.askyesno("Confirm action", preview, parent=self.app.root)
+        return bool(result)
+
+    def _spawn_damage_numbers(
+        self, attacker: Character, targets: Sequence[Character], ability: Ability
+    ) -> None:
+        """Queue floating labels for damage dealt by the current action."""
+        if self.app.engine is None:
+            return
+
+        damage = max(0, ability.damage + attacker.attack // 5)
+        for target in targets:
+            if not target.is_alive():
+                continue
+
+            if target in self.app.engine.player_team:
+                x = 180
+                y = 120 + self.app.engine.player_team.index(target) * 150
+            else:
+                x = 900
+                y = 120 + self.app.engine.bot_team.index(target) * 150
+
+            self.damage_numbers.append({"x": x, "y": y, "damage": damage, "life": 0.0})
+
+    def _draw_damage_numbers(self) -> None:
+        """Draw floating damage labels above targets."""
+        for effect in list(self.damage_numbers):
+            life = float(effect["life"]) + 0.05
+            effect["life"] = life
+            if life > 3.0:
+                self.damage_numbers.remove(effect)
+                continue
+
+            y = int(effect["y"]) - int(life * 24) - 18
+            color = "#fca5a5" if int(effect["damage"]) >= 30 else "#fecaca"
+            self.canvas.create_text(
+                int(effect["x"]),
+                y,
+                text=f"-{int(effect['damage'])}",
+                fill=color,
+                font=("Arial", 11, "bold"),
+            )
 
     def _append_logs(self, logs: list[str]) -> None:
         """Append new log lines and keep only the most recent six events."""

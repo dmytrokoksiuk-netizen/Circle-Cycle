@@ -1,7 +1,7 @@
 .PHONY: install run test lint fmt clean
 
 install:
-	uv pip install -e ".[dev]"
+	python -m pip install -e ".[dev]"
 
 run:
 	python -m circle_cycle

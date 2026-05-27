@@ -133,6 +133,22 @@ def draw_circle_character(
         fill="white",
         font=("Arial", 10, "bold"),
     )
+    canvas.create_text(
+        x,
+        y + radius + 46,
+        text=f"{character.current_hp}/{character.hp} HP",
+        fill="#e5e7eb",
+        font=("Arial", 9, "bold"),
+    )
+    charge_text = f"Ultimate {character.ultimate_charge_count}/2"
+    charge_color = "#fbbf24" if character.can_use_ultimate() else "#cbd5e1"
+    canvas.create_text(
+        x,
+        y + radius + 62,
+        text=charge_text,
+        fill=charge_color,
+        font=("Arial", 8, "bold"),
+    )
 
     if not character.is_alive():
         canvas.create_line(

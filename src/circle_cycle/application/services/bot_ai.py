@@ -34,6 +34,10 @@ class BotAI:
             if ability_id in self.abilities
             and self.abilities[ability_id].type != AbilityType.NORMAL
             and bot.cooldowns.get(ability_id, 0) == 0
+            and (
+                self.abilities[ability_id].type != AbilityType.ULTIMATE
+                or bot.can_use_ultimate()
+            )
         ]
 
         if special_candidates:

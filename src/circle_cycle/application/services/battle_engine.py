@@ -115,13 +115,22 @@ class BattleEngine:
         if ability.id not in attacker.abilities:
             raise InvalidActionError(f"{attacker.name} does not know {ability.id}.")
 
+        if ability.type == AbilityType.ULTIMATE and not attacker.can_use_ultimate():
+            raise InvalidActionError(f"{attacker.name} has not charged {ability.name} yet.")
+
         if attacker.cooldowns.get(ability.id, 0) > 0:
             raise AbilityOnCooldownError(
                 f"{ability.name} is still on cooldown for {attacker.name}."
             )
 
+        if ability.type == AbilityType.SPECIAL:
+            attacker.record_special_use()
+
         attacker.cooldowns[ability.id] = ability.cooldown
         logs = resolve_ability(attacker, targets, ability)
+
+        if ability.type == AbilityType.ULTIMATE:
+            attacker.consume_ultimate()
         return logs
 
     def bot_turn(self) -> list[str]:
