@@ -137,8 +137,8 @@ class BattleEngine:
         self.enemy_plan = self.bot_ai.generate_plan(self.bot_team, self.player_team)
 
         # Determine which side acts first based on team speed totals (Task 2)
-        player_speed = sum(c.speed for c in self.player_team if c.is_alive())
-        enemy_speed = sum(c.speed for c in self.bot_team if c.is_alive())
+        player_speed = self._calculate_team_speed(self.player_team)
+        enemy_speed = self._calculate_team_speed(self.bot_team)
 
         self.phase = BattlePhase.EXECUTION
         logs: list[str] = []
