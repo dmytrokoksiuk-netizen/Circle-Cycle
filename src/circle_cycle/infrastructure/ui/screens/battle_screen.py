@@ -152,7 +152,7 @@ class BattleScreen(tk.Frame):
             button.config(state="normal")
 
     def handle_action(self, ability_type: str) -> None:
-        """Handle a player action request and advance the turn."""
+        """Handle a player action request by showing an ability preview before proceeding."""
         if self.app.engine is None:
             return
 
@@ -165,6 +165,88 @@ class BattleScreen(tk.Frame):
         if ability is None:
             return
 
+        # Show the preview modal; Confirm will perform the actual action flow
+        self._open_preview(ability, current)
+
+    def _open_preview(self, ability, actor) -> None:
+        """Display a modal preview of the selected ability with Confirm/Cancel."""
+        # Create modal window
+        modal = tk.Toplevel(self)
+        modal.transient(self)
+        modal.grab_set()
+        modal.configure(bg="#0b1220")
+
+        title = tk.Label(modal, text=ability.name, bg="#0b1220", fg="white", font=("Arial", 16, "bold"))
+        title.pack(pady=(12, 6), padx=12)
+
+        # Type badge
+        from circle_cycle.domain.enums.ability_type import AbilityType
+
+        badge_text = ability.type.value if hasattr(ability.type, "value") else str(ability.type)
+        badge = tk.Label(modal, text=badge_text.title(), bg="#111827", fg="white", font=("Arial", 10, "bold"))
+        badge.pack(pady=(0, 8))
+
+        # Description
+        desc = ability.description if getattr(ability, "description", None) else "No description available."
+        desc_label = tk.Label(modal, text=desc, wraplength=400, justify="left", bg="#0b1220", fg="#e5e7eb", font=("Arial", 12))
+        desc_label.pack(padx=12, pady=(0, 8))
+
+        # Damage and effects
+        damage_label = tk.Label(modal, text=f"Damage: {ability.damage}", bg="#0b1220", fg="#f97316", font=("Arial", 14, "bold"))
+        damage_label.pack(padx=12, pady=(0, 6))
+
+        effects = []
+        if ability.effect is not None:
+            effects.append(str(ability.effect).title())
+        target_type = "All enemies" if ability.type == AbilityType.ULTIMATE else "Single target"
+        effects_text = ", ".join(effects) if effects else "None"
+        effects_label = tk.Label(modal, text=f"Effects: {effects_text} • Target: {target_type}", bg="#0b1220", fg="#e5e7eb", font=("Arial", 10))
+        effects_label.pack(padx=12, pady=(0, 12))
+
+        # Buttons frame
+        btn_frame = tk.Frame(modal, bg="#0b1220")
+        btn_frame.pack(pady=(0, 12))
+
+        def on_confirm(event=None):
+            modal.grab_release()
+            modal.destroy()
+            self._on_confirm_preview(actor, ability)
+
+        def on_cancel(event=None):
+            modal.grab_release()
+            modal.destroy()
+
+        # Confirm button is disabled if Ultimate and not ready
+        confirm_state = "normal"
+        if ability.type == AbilityType.ULTIMATE and not getattr(actor, "is_ultimate_ready", False):
+            confirm_state = "disabled"
+            confirm_text = f"Not Ready ({getattr(actor, 'special_use_count', 0)}/2)"
+        else:
+            confirm_text = "Confirm"
+
+        confirm_btn = tk.Button(btn_frame, text=confirm_text, command=on_confirm, state=confirm_state, bg="#059669", fg="white", font=("Arial", 12, "bold"))
+        confirm_btn.pack(side="left", padx=8)
+
+        cancel_btn = tk.Button(btn_frame, text="Cancel", command=on_cancel, bg="#374151", fg="white", font=("Arial", 12))
+        cancel_btn.pack(side="left", padx=8)
+
+        # Key bindings
+        modal.bind("<Return>", on_confirm)
+        modal.bind("<Escape>", on_cancel)
+
+        # Center modal over parent
+        self.update_idletasks()
+        x = self.winfo_rootx() + self.winfo_width() // 2 - modal.winfo_reqwidth() // 2
+        y = self.winfo_rooty() + self.winfo_height() // 2 - modal.winfo_reqheight() // 2
+        modal.geometry(f"+{x}+{y}")
+
+    def _on_confirm_preview(self, actor, ability) -> None:
+        """Callback executed when preview is confirmed — proceeds with action flow."""
+        if self.app.engine is None:
+            return
+
+        engine = self.app.engine
+        current = actor
         targets = engine.get_action_targets(current, ability)
 
         try:

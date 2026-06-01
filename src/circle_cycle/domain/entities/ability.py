@@ -10,7 +10,11 @@ from circle_cycle.domain.enums.status_effect import StatusEffect
 
 @dataclass(frozen=True)
 class Ability:
-    """Represents a single game ability loaded from data."""
+    """Represents a single game ability loaded from data.
+
+    Fields:
+        description: Short human-readable description shown in the UI preview.
+    """
 
     id: str
     name: str
@@ -18,3 +22,4 @@ class Ability:
     damage: int
     effect: StatusEffect | None
     cooldown: int
+    description: str = ""
