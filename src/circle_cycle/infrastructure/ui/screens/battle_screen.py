@@ -298,8 +298,17 @@ class BattleScreen(tk.Frame):
 
         If a speed comparison log appears ("acts first"), briefly display a
         transient banner indicating which side will act first for ~1.5s.
+
+        Additionally, parse logs for damage/heal events and show floating numbers
+        on the canvas above the affected characters.
         """
         show_banner = None
+        floating_events = []  # tuples of (target_name, text, color)
+        import re
+        from circle_cycle.infrastructure.ui.rendering.draw_character import (
+            show_floating_number,
+        )
+
         for log in logs:
             self.log_messages.append(log)
             if "acts first" in log:
@@ -309,11 +318,61 @@ class BattleScreen(tk.Frame):
                 elif "Enemy acts first" in log or "Enemy team speed" in log and "Enemy acts first" in log:
                     show_banner = ">> Enemy moves first! <<"
 
+            # Damage pattern: "<Attacker> hits <Target> for <N> damage"
+            m = re.search(r"hits (.+?) for (\d+) damage", log)
+            if m:
+                target_name = m.group(1)
+                amount = int(m.group(2))
+                floating_events.append((target_name, f"-{amount}", "#ef4444"))
+                continue
+
+            # Heal patterns
+            m2 = re.search(r"gains (\d+) HP from", log)
+            if m2:
+                amount = int(m2.group(1))
+                # extract target name at start
+                tname = log.split(" ")[0]
+                floating_events.append((tname, f"+{amount}", "#10b981"))
+                continue
+            m3 = re.search(r"is healed for (\d+) HP", log)
+            if m3:
+                amount = int(m3.group(1))
+                tname = log.split(" ")[0]
+                floating_events.append((tname, f"+{amount}", "#10b981"))
+                continue
+
         self.log_messages = self.log_messages[-6:]
         self._refresh_log()
 
         if show_banner:
             self._show_order_banner(show_banner)
+
+        # Show floating numbers for parsed events
+        if floating_events and self.app.engine is not None:
+            engine = self.app.engine
+            # positions match those used in refresh()
+            player_x = 180
+            bot_x = 900
+            y_base = 120
+            y_step = 150
+            for target_name, text, color in floating_events:
+                # find target in player or bot teams
+                found = False
+                for idx, ch in enumerate(engine.player_team):
+                    if ch.name == target_name:
+                        x = player_x
+                        y = y_base + idx * y_step - 20
+                        show_floating_number(self.canvas, x + (0), y, text, color)
+                        found = True
+                        break
+                if found:
+                    continue
+                for idx, ch in enumerate(engine.bot_team):
+                    if ch.name == target_name:
+                        x = bot_x
+                        y = y_base + idx * y_step - 20
+                        show_floating_number(self.canvas, x + (0), y, text, color)
+                        break
 
     def _show_order_banner(self, text: str) -> None:
         """Display the transient order banner for a short duration."""
