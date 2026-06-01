@@ -59,6 +59,10 @@ Runtime JSON definitions live in `data/`:
 - `abilities.json` — attack/skill definitions
 - `cards.json` — buff cards for between-round selection
 
+## Execution order
+
+Battle execution order is now determined by team speed totals: the sum of speed for all living characters on a team. The faster team executes all planned actions first; ties favor the player.
+
 ## Commands
 
 | Command | Description |

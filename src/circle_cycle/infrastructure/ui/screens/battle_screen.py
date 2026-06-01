@@ -31,6 +31,16 @@ class BattleScreen(tk.Frame):
         )
         self.turn_label.pack(pady=(12, 8))
 
+        # Transient banner to show which side acts first during execution phase
+        self.order_label = tk.Label(
+            self,
+            text="",
+            bg="#052e16",
+            fg="#fef3c7",
+            font=("Arial", 14, "bold"),
+        )
+        # Do not pack now; shown only when needed
+
         self.canvas = tk.Canvas(self, bg="#0f172a", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
@@ -191,12 +201,38 @@ class BattleScreen(tk.Frame):
         self.refresh()
 
     def _append_logs(self, logs: list[str]) -> None:
-        """Append new log lines and keep only the most recent six events."""
+        """Append new log lines and keep only the most recent six events.
+
+        If a speed comparison log appears ("acts first"), briefly display a
+        transient banner indicating which side will act first for ~1.5s.
+        """
+        show_banner = None
         for log in logs:
             self.log_messages.append(log)
+            if "acts first" in log:
+                # Determine side from message content
+                if "Player acts first" in log or "Player team speed" in log and "Player acts first" in log:
+                    show_banner = ">> Your team strikes first! <<"
+                elif "Enemy acts first" in log or "Enemy team speed" in log and "Enemy acts first" in log:
+                    show_banner = ">> Enemy moves first! <<"
 
         self.log_messages = self.log_messages[-6:]
         self._refresh_log()
+
+        if show_banner:
+            self._show_order_banner(show_banner)
+
+    def _show_order_banner(self, text: str) -> None:
+        """Display the transient order banner for a short duration."""
+        # Place banner above the canvas and remove after 1.5s
+        self.order_label.config(text=text)
+        self.order_label.pack(pady=(6, 6))
+
+        def _hide() -> None:
+            self.order_label.pack_forget()
+
+        # 1500ms display
+        self.after(1500, _hide)
 
     def _refresh_log(self) -> None:
         """Redraw the battle log text widget."""
