@@ -13,6 +13,8 @@ from circle_cycle.domain.entities.ability import Ability
 from circle_cycle.domain.entities.card import Card
 from circle_cycle.domain.entities.character import Character
 from circle_cycle.domain.enums.ability_type import AbilityType
+from circle_cycle.domain.enums.battle_phase import BattlePhase
+from circle_cycle.domain.value_objects.planned_action import PlannedAction
 from circle_cycle.domain.exceptions.battle import (
     AbilityOnCooldownError,
     BattleNotStartedError,
@@ -54,6 +56,9 @@ class BattleEngine:
             key=lambda character: character.speed,
             reverse=True,
         )
+        # Initialize planning phase for Task 1
+        self.phase = BattlePhase.PLANNING
+        self.planned_actions: list[PlannedAction] = []
 
     def get_current_character(self) -> Character:
         """Return the character whose turn it is."""
@@ -85,6 +90,86 @@ class BattleEngine:
             if ability is not None and ability.type == ability_type:
                 return ability
         return None
+
+    # --- Planning phase API (Task 1 initial implementation) ---
+    def submit_player_action(self, attacker: Character, ability: Ability, targets: list[Character]) -> int:
+        """Submit a planned action for a player character.
+
+        Returns the number of planned actions submitted so far for the player.
+        """
+        if attacker not in self.player_team:
+            raise InvalidActionError("Only player characters may submit planned actions.")
+        if not attacker.is_alive():
+            raise InvalidActionError("Dead characters cannot submit actions.")
+
+        planned = PlannedAction(actor=attacker, ability=ability, targets=list(targets))
+        self.planned_actions.append(planned)
+
+        # If all player plans collected, generate bot plans and execute the full plan.
+        if len([p for p in self.planned_actions if p.actor in self.player_team]) >= TEAM_SIZE:
+            self._generate_bot_actions()
+            return self.execute_planned_actions()
+
+        return len([p for p in self.planned_actions if p.actor in self.player_team])
+
+    def _generate_bot_actions(self) -> None:
+        """Generate a simple bot action for each living bot and append to planned actions."""
+        for bot in [b for b in self.bot_team if b.is_alive()]:
+            # Simple bot selection: prefer non-normal abilities that are off-cooldown, else normal
+            ability = None
+            for ability_id in bot.abilities:
+                candidate = self.abilities.get(ability_id)
+                if candidate is None:
+                    continue
+                if bot.cooldowns.get(ability_id, 0) == 0 and candidate.type != AbilityType.NORMAL:
+                    ability = candidate
+                    break
+            if ability is None:
+                # find normal ability by id list order
+                for ability_id in bot.abilities:
+                    candidate = self.abilities.get(ability_id)
+                    if candidate is not None and candidate.type == AbilityType.NORMAL:
+                        ability = candidate
+                        break
+            if ability is None:
+                continue
+            targets = self.get_action_targets(bot, ability)
+            planned = PlannedAction(actor=bot, ability=ability, targets=list(targets))
+            self.planned_actions.append(planned)
+
+    def execute_planned_actions(self) -> list[str]:
+        """Execute all planned actions in the order they were collected.
+
+        Returns a list of battle log lines produced during execution.
+        """
+        if not self.planned_actions:
+            return []
+
+        self.phase = BattlePhase.EXECUTION
+        logs: list[str] = []
+
+        # Execute each planned action sequentially. Skip if actor dead or targets all dead.
+        for planned in list(self.planned_actions):
+            actor = planned.actor
+            ability = planned.ability
+            targets = [t for t in planned.targets if t.is_alive()]
+
+            if not actor.is_alive():
+                logs.append(f"{actor.name} is dead — action skipped.")
+                continue
+            if not targets:
+                logs.append(f"{actor.name}'s targets are dead — action skipped.")
+                continue
+
+            # Apply cooldown and resolve ability
+            actor.cooldowns[ability.id] = ability.cooldown
+            logs.extend(resolve_ability(actor, targets, ability))
+
+        # Clear planned actions and enter turn end
+        self.planned_actions = []
+        self.phase = BattlePhase.TURN_END
+        self.end_turn()
+        return logs
 
     def get_action_targets(self, attacker: Character, ability: Ability) -> list[Character]:
         """Return the target list that should be used for the action."""
