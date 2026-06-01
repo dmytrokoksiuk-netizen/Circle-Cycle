@@ -13,11 +13,14 @@ Circle Cycle is a turn-based strategy game built with Python 3.12+ and Tkinter, 
 ## Quick Start
 
 ```bash
+# Create a uv virtual environment
+uv venv
+
 # Install dependencies (dev mode)
 uv pip install -e ".[dev]"
 
 # Run the game
-python -m circle_cycle
+uv run python -m circle_cycle
 
 # Run tests
 pytest --cov=src --cov-report=term-missing

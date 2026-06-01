@@ -57,3 +57,49 @@ class BotAI:
             targets = [character for character in player_team if character.is_alive()]
 
         return bot, ability, targets
+
+    def generate_plan(self, bot_team: list[Character], player_team: list[Character]) -> list["PlannedAction"]:
+        """Generate a planned action for each living bot character."""
+        from circle_cycle.domain.value_objects.planned_action import PlannedAction
+
+        plans: list[PlannedAction] = []
+        for bot in [b for b in bot_team if b.is_alive()]:
+            # Select ability for this specific bot using same heuristic as choose_action
+            special_candidates = [
+                self.abilities[ability_id]
+                for ability_id in bot.abilities
+                if ability_id in self.abilities
+                and self.abilities[ability_id].type != AbilityType.NORMAL
+                and bot.cooldowns.get(ability_id, 0) == 0
+            ]
+
+            if special_candidates:
+                ability = max(special_candidates, key=lambda a: getattr(a, "damage", 0))
+            else:
+                ability = next(
+                    (
+                        self.abilities[ability_id]
+                        for ability_id in bot.abilities
+                        if ability_id in self.abilities
+                        and self.abilities[ability_id].type == AbilityType.NORMAL
+                    ),
+                    None,
+                )
+
+            if ability is None:
+                # No available ability for this bot
+                continue
+
+            if ability.type == AbilityType.ULTIMATE:
+                targets = [character for character in player_team if character.is_alive()]
+            else:
+                alive_players = [c for c in player_team if c.is_alive()]
+                if not alive_players:
+                    targets = []
+                else:
+                    target = min(alive_players, key=lambda c: (c.current_hp, c.name))
+                    targets = [target]
+
+            plans.append(PlannedAction(actor=bot, ability=ability, targets=targets))
+
+        return plans
