@@ -63,6 +63,11 @@ class BattleEngine:
         self.enemy_plan: list[PlannedAction] = []
         self.planning_index: int = 0
 
+        # Reset ultimate charges for all characters at battle start
+        for character in [*self.player_team, *self.bot_team]:
+            if hasattr(character, "reset_special_count"):
+                character.reset_special_count()
+
     def get_current_character(self) -> Character:
         """Return the character whose turn it is."""
         if not self.turn_order:
@@ -110,6 +115,13 @@ class BattleEngine:
             raise InvalidActionError("Dead characters cannot submit actions.")
         if ability.id not in attacker.abilities:
             raise InvalidActionError(f"{attacker.name} does not know {ability.id}.")
+
+        # Prevent selecting Ultimate unless character has enough charges
+        from circle_cycle.domain.enums.ability_type import AbilityType
+        if ability.type == AbilityType.ULTIMATE and not getattr(attacker, "is_ultimate_ready", False):
+            raise InvalidActionError(
+                f"Ultimate not ready ({attacker.special_use_count}/2 charges)"
+            )
 
         targets = [target] if target is not None else []
         planned = PlannedAction(actor=attacker, ability=ability, targets=list(targets))

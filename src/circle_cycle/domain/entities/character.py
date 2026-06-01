@@ -24,6 +24,8 @@ class Character:
     current_hp: int = field(init=False)
     status_effects: list[StatusEffect] = field(default_factory=list)
     cooldowns: dict[str, int] = field(default_factory=dict)
+    # Number of times Special has been used (persists across turns within a battle)
+    special_use_count: int = 0
 
     def __post_init__(self) -> None:
         """Initialize mutable state after dataclass construction."""
@@ -72,3 +74,19 @@ class Character:
         damage = burn_count * BURN_DAMAGE_PER_STACK
         self.take_damage(damage)
         return damage
+
+    # --- Ultimate charge helpers ---
+    @property
+    def is_ultimate_ready(self) -> bool:
+        """Return whether this character has accumulated enough Special uses for Ultimate."""
+        from circle_cycle.domain.constants.game import ULTIMATE_CHARGE_REQUIRED
+
+        return self.special_use_count >= ULTIMATE_CHARGE_REQUIRED
+
+    def increment_special_count(self) -> None:
+        """Increment the Special-use charge counter for this character."""
+        self.special_use_count += 1
+
+    def reset_special_count(self) -> None:
+        """Reset the Special-use charge counter (after Ultimate use or at battle start)."""
+        self.special_use_count = 0

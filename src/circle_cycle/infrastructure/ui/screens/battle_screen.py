@@ -137,8 +137,19 @@ class BattleScreen(tk.Frame):
             button.config(state="normal" if is_player_turn else "disabled")
 
             ability = self.app.engine.get_ability_by_type(current, ability_type)
+            # Disable when ability doesn't exist or is on cooldown
             if ability is None or current.cooldowns.get(ability.id, 0) > 0:
                 button.config(state="disabled")
+                continue
+
+            # Additional rule: Ultimate button disabled until character has 2 charges
+            from circle_cycle.domain.enums.ability_type import AbilityType
+            if ability.type == AbilityType.ULTIMATE and not getattr(current, "is_ultimate_ready", False):
+                button.config(state="disabled")
+                continue
+
+            # Otherwise leave enabled
+            button.config(state="normal")
 
     def handle_action(self, ability_type: str) -> None:
         """Handle a player action request and advance the turn."""

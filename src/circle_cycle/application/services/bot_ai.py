@@ -59,35 +59,57 @@ class BotAI:
         return bot, ability, targets
 
     def generate_plan(self, bot_team: list[Character], player_team: list[Character]) -> list["PlannedAction"]:
-        """Generate a planned action for each living bot character."""
+        """Generate a planned action for each living bot character.
+
+        Bot will only use Ultimate if the character's charge counter indicates it's ready.
+        Prefer Special over Normal when charge is 1 to help unlock Ultimate.
+        """
         from circle_cycle.domain.value_objects.planned_action import PlannedAction
 
         plans: list[PlannedAction] = []
         for bot in [b for b in bot_team if b.is_alive()]:
-            # Select ability for this specific bot using same heuristic as choose_action
+            # Build candidate lists
             special_candidates = [
                 self.abilities[ability_id]
                 for ability_id in bot.abilities
                 if ability_id in self.abilities
-                and self.abilities[ability_id].type != AbilityType.NORMAL
+                and self.abilities[ability_id].type == AbilityType.SPECIAL
                 and bot.cooldowns.get(ability_id, 0) == 0
             ]
 
-            if special_candidates:
-                ability = max(special_candidates, key=lambda a: getattr(a, "damage", 0))
+            ultimate_candidate = next(
+                (
+                    self.abilities[ability_id]
+                    for ability_id in bot.abilities
+                    if ability_id in self.abilities
+                    and self.abilities[ability_id].type == AbilityType.ULTIMATE
+                    and bot.cooldowns.get(ability_id, 0) == 0
+                ),
+                None,
+            )
+
+            normal_candidate = next(
+                (
+                    self.abilities[ability_id]
+                    for ability_id in bot.abilities
+                    if ability_id in self.abilities
+                    and self.abilities[ability_id].type == AbilityType.NORMAL
+                ),
+                None,
+            )
+
+            ability = None
+            # Use Ultimate only if charged
+            if ultimate_candidate is not None and getattr(bot, "is_ultimate_ready", False):
+                ability = ultimate_candidate
             else:
-                ability = next(
-                    (
-                        self.abilities[ability_id]
-                        for ability_id in bot.abilities
-                        if ability_id in self.abilities
-                        and self.abilities[ability_id].type == AbilityType.NORMAL
-                    ),
-                    None,
-                )
+                # Prefer Special when available; if bot has 1 charge prefer Special to help unlock
+                if special_candidates:
+                    ability = max(special_candidates, key=lambda a: getattr(a, "damage", 0))
+                elif normal_candidate is not None:
+                    ability = normal_candidate
 
             if ability is None:
-                # No available ability for this bot
                 continue
 
             if ability.type == AbilityType.ULTIMATE:
