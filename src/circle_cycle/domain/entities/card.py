@@ -15,3 +15,5 @@ class Card:
     name: str
     description: str
     effect: CardEffect
+    # Rarity defaults to COMMON to preserve backward compatibility with existing JSON
+    rarity: "CardRarity" = None

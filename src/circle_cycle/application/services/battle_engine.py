@@ -286,14 +286,36 @@ class BattleEngine:
         return None
 
     def get_card_choices(self) -> list[Card]:
-        """Return the current round's card options."""
+        """Return the current round's card options using weighted rarity selection.
+
+        Offers 3 or 4 cards (randomly) weighted by rarity. No duplicates in a single offering.
+        """
         if self.pending_card_choices:
             return list(self.pending_card_choices)
 
         card_pool = list(self.cards.values())
-        self.pending_card_choices = random.sample(
-            card_pool, k=min(CARD_CHOICES_PER_ROUND, len(card_pool))
-        )
+        if not card_pool:
+            return []
+
+        # Determine offering size: 3 or 4 (favor 3)
+        offering_size = random.choices([3, 4], weights=[80, 20], k=1)[0]
+        offering_size = min(offering_size, len(card_pool))
+
+        # Map rarities to weights
+        from circle_cycle.domain.enums.card_rarity import CardRarity
+
+        weight_map = {CardRarity.COMMON: 60, CardRarity.RARE: 30, CardRarity.EPIC: 10}
+
+        # Make a weighted sample without replacement
+        available = list(card_pool)
+        chosen: list[Card] = []
+        for _ in range(offering_size):
+            weights = [weight_map.get(getattr(card, "rarity", CardRarity.COMMON), 60) for card in available]
+            pick = random.choices(available, weights=weights, k=1)[0]
+            chosen.append(pick)
+            available.remove(pick)
+
+        self.pending_card_choices = chosen
         return list(self.pending_card_choices)
 
     def apply_card_choice(self, card: Card, target: Character) -> str:

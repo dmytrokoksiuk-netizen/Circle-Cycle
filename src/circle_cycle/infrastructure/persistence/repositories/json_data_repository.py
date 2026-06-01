@@ -8,6 +8,7 @@ from typing import Any
 
 from circle_cycle.domain.entities.ability import Ability
 from circle_cycle.domain.entities.card import Card
+from circle_cycle.domain.enums.card_rarity import CardRarity
 from circle_cycle.domain.entities.character import Character
 from circle_cycle.domain.enums.ability_type import AbilityType
 from circle_cycle.domain.enums.card_stat import CardStat
@@ -99,6 +100,7 @@ class JsonDataRepository(DataRepository):
                 if not isinstance(effect_data, dict):
                     raise DataLoadError(f"Card effect must be an object: {entry}")
 
+                rarity = CardRarity(str(entry.get("rarity"))) if entry.get("rarity") is not None else CardRarity.COMMON
                 card = Card(
                     id=str(entry["id"]),
                     name=str(entry["name"]),
@@ -107,6 +109,7 @@ class JsonDataRepository(DataRepository):
                         stat=CardStat(str(effect_data["stat"])),
                         value=int(effect_data["value"]),
                     ),
+                    rarity=rarity,
                 )
             except KeyError as exc:
                 raise DataLoadError(f"Card entry is missing required key: {exc}") from exc

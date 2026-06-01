@@ -3,36 +3,84 @@
     "id": "iron_skin",
     "name": "Iron Skin",
     "description": "Increase HP by 20 and raise your survivability.",
-    "effect": {"stat": "hp", "value": 20}
+    "effect": {"stat": "hp", "value": 20},
+    "rarity": "common"
   },
   {
     "id": "rage",
     "name": "Rage",
     "description": "Boost attack by 10 for the remainder of the battle.",
-    "effect": {"stat": "attack", "value": 10}
+    "effect": {"stat": "attack", "value": 10},
+    "rarity": "common"
   },
   {
     "id": "quick_feet",
     "name": "Quick Feet",
     "description": "Increase speed by 5 to take turns sooner.",
-    "effect": {"stat": "speed", "value": 5}
+    "effect": {"stat": "speed", "value": 5},
+    "rarity": "common"
   },
   {
     "id": "full_heal",
     "name": "Full Heal",
     "description": "Restore 30 HP to the selected character.",
-    "effect": {"stat": "heal", "value": 30}
+    "effect": {"stat": "heal", "value": 30},
+    "rarity": "common"
   },
   {
     "id": "steel_guard",
     "name": "Steel Guard",
-    "description": "Grant +15 HP and a temporary shield for the next hit.",
-    "effect": {"stat": "hp", "value": 15}
+    "description": "Grant +15 HP to the selected character.",
+    "effect": {"stat": "hp", "value": 15},
+    "rarity": "common"
   },
   {
     "id": "surge",
     "name": "Surge",
-    "description": "Boost speed by 8 and momentum for the next round.",
-    "effect": {"stat": "speed", "value": 8}
+    "description": "Boost speed by 8 for the selected character.",
+    "effect": {"stat": "speed", "value": 8},
+    "rarity": "rare"
+  },
+  {
+    "id": "battle_cry",
+    "name": "Battle Cry",
+    "description": "Increase attack by 10 for the selected character.",
+    "effect": {"stat": "attack", "value": 10},
+    "rarity": "common"
+  },
+  {
+    "id": "precision_strike",
+    "name": "Precision Strike",
+    "description": "Increase attack by 20 for the selected character.",
+    "effect": {"stat": "attack", "value": 20},
+    "rarity": "rare"
+  },
+  {
+    "id": "stone_wall",
+    "name": "Stone Wall",
+    "description": "Increase HP by 25 for the selected character.",
+    "effect": {"stat": "hp", "value": 25},
+    "rarity": "common"
+  },
+  {
+    "id": "swift_boots",
+    "name": "Swift Boots",
+    "description": "Increase speed by 10 for the selected character.",
+    "effect": {"stat": "speed", "value": 10},
+    "rarity": "rare"
+  },
+  {
+    "id": "major_heal",
+    "name": "Major Heal",
+    "description": "Restore 50 HP to the selected character.",
+    "effect": {"stat": "heal", "value": 50},
+    "rarity": "rare"
+  },
+  {
+    "id": "minor_rage",
+    "name": "Minor Rage",
+    "description": "Increase attack by 5 for the selected character.",
+    "effect": {"stat": "attack", "value": 5},
+    "rarity": "common"
   }
 ]

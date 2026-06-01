@@ -8,6 +8,7 @@ import pytest
 
 from circle_cycle.domain.entities.ability import Ability
 from circle_cycle.domain.entities.card import Card
+from circle_cycle.domain.enums.card_rarity import CardRarity
 from circle_cycle.domain.entities.character import Character
 from circle_cycle.domain.enums.ability_type import AbilityType
 from circle_cycle.domain.enums.card_stat import CardStat
@@ -85,18 +86,21 @@ class InMemoryDataRepository(DataRepository):
                 name="Iron Skin",
                 description="Increase HP by 20.",
                 effect=CardEffect(stat=CardStat.HP, value=20),
+                rarity=CardRarity.COMMON,
             ),
             "rage": Card(
                 id="rage",
                 name="Rage",
                 description="Boost attack by 10.",
                 effect=CardEffect(stat=CardStat.ATTACK, value=10),
+                rarity=CardRarity.COMMON,
             ),
             "full_heal": Card(
                 id="full_heal",
                 name="Full Heal",
                 description="Restore 30 HP.",
                 effect=CardEffect(stat=CardStat.HEAL, value=30),
+                rarity=CardRarity.COMMON,
             ),
         }
 
