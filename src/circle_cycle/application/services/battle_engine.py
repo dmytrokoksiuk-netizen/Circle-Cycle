@@ -207,6 +207,14 @@ class BattleEngine:
         lowest_hp_target = min(alive_targets, key=lambda character: character.current_hp)
         return [lowest_hp_target]
 
+    def _calculate_team_speed(self, characters: list[Character]) -> int:
+        """Return the total speed of all LIVING characters in the provided list.
+
+        This is a pure calculation with no side effects. Characters with
+        current_hp == 0 are considered dead and excluded.
+        """
+        return sum(c.speed for c in characters if c.is_alive())
+
     def execute_action(
         self, attacker: Character, ability: Ability, targets: list[Character]
     ) -> list[str]:
