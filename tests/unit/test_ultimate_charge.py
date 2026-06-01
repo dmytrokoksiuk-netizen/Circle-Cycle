@@ -79,8 +79,14 @@ def test_specials_accumulate_and_ultimate_resets(repository: InMemoryDataReposit
     special = abilities["fire_spin"]
     ultimate = abilities["earthquake"]
 
-    # Manually execute two special uses for ace
+    # Manually execute a special, simulate cooldown ticks across turns, then execute a second special
     logs1 = eng.execute_action(player_team[0], special, eng.get_action_targets(player_team[0], special))
+    # simulate cooldown ticks equal to the ability cooldown so the special can be used again
+    for _ in range(special.cooldown):
+        for char in [*player_team, *bot_team]:
+            char.tick_cooldowns()
+            char.tick_status_effects()
+
     logs2 = eng.execute_action(player_team[0], special, eng.get_action_targets(player_team[0], special))
     assert player_team[0].special_use_count == 2
     assert player_team[0].is_ultimate_ready is True
