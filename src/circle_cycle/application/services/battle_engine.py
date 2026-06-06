@@ -10,7 +10,8 @@ from circle_cycle.application.services.bot_ai import BotAI
 from circle_cycle.application.services.card_applicator import apply_card
 from circle_cycle.domain.constants.game import (
     CARD_CHOICES_PER_ROUND,
-    MANA_REGEN_PER_TURN,
+    TEAM_MAX_MANA,
+    TEAM_MANA_REGEN_PER_TURN,
     TEAM_SIZE,
 )
 from circle_cycle.domain.entities.ability import Ability
@@ -49,6 +50,9 @@ class BattleEngine:
         self.card_phase_active = False
         self.pending_card_choices: list[Card] = []
         self.bot_ai = BotAI(self.abilities)
+        # Shared team mana pools
+        self.player_team_mana: int = TEAM_MAX_MANA
+        self.bot_team_mana: int = TEAM_MAX_MANA
 
     def start_battle(self) -> None:
         """Reset the battle and establish the initial turn order."""
@@ -56,14 +60,14 @@ class BattleEngine:
         self.current_turn_index = 0
         self.card_phase_active = False
         self.pending_card_choices = []
+        self.player_team_mana = TEAM_MAX_MANA
+        self.bot_team_mana = TEAM_MAX_MANA
         self.turn_order = sorted(
             [*self.player_team, *self.bot_team],
             key=lambda character: character.speed,
             reverse=True,
         )
-        # Initialize planning phase for Task 1
         self.phase = BattlePhase.PLANNING
-        # Separate plans for player and enemy and an index for planning progress
         self.player_plan: list[PlannedAction] = []
         self.enemy_plan: list[PlannedAction] = []
         self.planning_index: int = 0
@@ -74,9 +78,18 @@ class BattleEngine:
                 character.reset_special_count()
 
     def get_current_character(self) -> Character:
-        """Return the character whose turn it is."""
+        """Return the character whose turn it is, skipping dead characters."""
         if not self.turn_order:
             raise BattleNotStartedError("Battle has not started.")
+        # Skip dead characters
+        attempts = len(self.turn_order)
+        while attempts > 0:
+            char = self.turn_order[self.current_turn_index]
+            if char.is_alive():
+                return char
+            self.current_turn_index = (self.current_turn_index + 1) % len(self.turn_order)
+            attempts -= 1
+        # All dead — shouldn't happen if check_winner is called
         return self.turn_order[self.current_turn_index]
 
     @classmethod
@@ -104,19 +117,53 @@ class BattleEngine:
                 return ability
         return None
 
-    # --- Mana helpers ---
+    # --- Team Mana helpers ---
+    def get_team_mana(self, character: Character) -> int:
+        """Return the team mana pool for the character's team."""
+        if character in self.player_team:
+            return self.player_team_mana
+        return self.bot_team_mana
+
+    def spend_team_mana(self, character: Character, amount: int) -> None:
+        """Deduct mana from the character's team pool."""
+        if amount <= 0:
+            return
+        if character in self.player_team:
+            if self.player_team_mana < amount:
+                raise InsufficientManaError(
+                    f"Not enough team mana (have {self.player_team_mana}, need {amount})"
+                )
+            self.player_team_mana -= amount
+        else:
+            if self.bot_team_mana < amount:
+                raise InsufficientManaError(
+                    f"Not enough team mana (have {self.bot_team_mana}, need {amount})"
+                )
+            self.bot_team_mana -= amount
+
+    def can_team_afford(self, character: Character, mana_cost: int) -> bool:
+        """Check if the character's team can afford the mana cost."""
+        if character in self.player_team:
+            return self.player_team_mana >= mana_cost
+        return self.bot_team_mana >= mana_cost
+
     def regenerate_mana(self) -> list[str]:
-        """Restore mana for all living characters. Returns log lines."""
+        """Restore mana for both teams. Returns log lines."""
         logs: list[str] = []
-        for character in [*self.player_team, *self.bot_team]:
-            if character.is_alive() and character.max_mana > 0:
-                old_mana = character.mana
-                character.restore_mana(MANA_REGEN_PER_TURN)
-                if character.mana > old_mana:
-                    logs.append(
-                        f"{character.name} regenerates {character.mana - old_mana} mana "
-                        f"(now {character.mana}/{character.max_mana})"
-                    )
+        old_player = self.player_team_mana
+        self.player_team_mana = min(TEAM_MAX_MANA, self.player_team_mana + TEAM_MANA_REGEN_PER_TURN)
+        if self.player_team_mana > old_player:
+            logs.append(
+                f"Player team regenerates {self.player_team_mana - old_player} mana "
+                f"(now {self.player_team_mana}/{TEAM_MAX_MANA})"
+            )
+        old_bot = self.bot_team_mana
+        self.bot_team_mana = min(TEAM_MAX_MANA, self.bot_team_mana + TEAM_MANA_REGEN_PER_TURN)
+        if self.bot_team_mana > old_bot:
+            logs.append(
+                f"Enemy team regenerates {self.bot_team_mana - old_bot} mana "
+                f"(now {self.bot_team_mana}/{TEAM_MAX_MANA})"
+            )
         return logs
 
     # --- Planning phase API (Task 1) ---
@@ -143,10 +190,10 @@ class BattleEngine:
                 f"Ultimate not ready ({attacker.special_use_count}/2 charges)"
             )
 
-        # Mana validation
-        if not attacker.can_afford_ability(ability.mana_cost):
+        # Team mana validation
+        if not self.can_team_afford(attacker, ability.mana_cost):
             raise InsufficientManaError(
-                f"Not enough mana (have {attacker.mana}, need {ability.mana_cost})"
+                f"Not enough team mana (have {self.get_team_mana(attacker)}, need {ability.mana_cost})"
             )
 
         targets = [target] if target is not None else []
@@ -172,7 +219,7 @@ class BattleEngine:
             raise InvalidActionError("Plan is incomplete; 3 player actions required.")
 
         # Generate enemy plan using BotAI
-        self.enemy_plan = self.bot_ai.generate_plan(self.bot_team, self.player_team)
+        self.enemy_plan = self.bot_ai.generate_plan(self.bot_team, self.player_team, self.bot_team_mana)
 
         # Determine which side acts first based on team speed totals (Task 2)
         player_speed = self._calculate_team_speed(self.player_team)
@@ -201,15 +248,16 @@ class BattleEngine:
                 logs.append(f"{actor.name}'s targets are dead — action skipped.")
                 continue
 
-            # Spend mana at execution time
-            if not actor.can_afford_ability(ability.mana_cost):
+            # Spend team mana at execution time
+            if not self.can_team_afford(actor, ability.mana_cost):
                 logs.append(
-                    f"{actor.name} doesn't have enough mana for {ability.name} — action skipped."
+                    f"{actor.name} doesn't have enough team mana for {ability.name} — action skipped."
                 )
                 continue
-            actor.spend_mana(ability.mana_cost)
+            self.spend_team_mana(actor, ability.mana_cost)
             if ability.mana_cost > 0:
-                logs.append(f"{actor.name} uses {ability.name} (-{ability.mana_cost} MP)")
+                team_mana = self.get_team_mana(actor)
+                logs.append(f"{actor.name} uses {ability.name} (-{ability.mana_cost} MP, team: {team_mana}/{TEAM_MAX_MANA})")
 
             actor.cooldowns[ability.id] = ability.cooldown
             logs.extend(resolve_ability(actor, targets, ability))
@@ -226,15 +274,16 @@ class BattleEngine:
                 logs.append(f"{actor.name}'s targets are dead — action skipped.")
                 continue
 
-            # Spend mana at execution time
-            if not actor.can_afford_ability(ability.mana_cost):
+            # Spend team mana at execution time
+            if not self.can_team_afford(actor, ability.mana_cost):
                 logs.append(
-                    f"{actor.name} doesn't have enough mana for {ability.name} — action skipped."
+                    f"{actor.name} doesn't have enough team mana for {ability.name} — action skipped."
                 )
                 continue
-            actor.spend_mana(ability.mana_cost)
+            self.spend_team_mana(actor, ability.mana_cost)
             if ability.mana_cost > 0:
-                logs.append(f"{actor.name} uses {ability.name} (-{ability.mana_cost} MP)")
+                team_mana = self.get_team_mana(actor)
+                logs.append(f"{actor.name} uses {ability.name} (-{ability.mana_cost} MP, team: {team_mana}/{TEAM_MAX_MANA})")
 
             actor.cooldowns[ability.id] = ability.cooldown
             logs.extend(resolve_ability(actor, targets, ability))
@@ -302,6 +351,9 @@ class BattleEngine:
         if attacker not in self.turn_order:
             raise InvalidActionError("Attacker is not part of the current battle.")
 
+        if not attacker.is_alive():
+            return [f"{attacker.name} is dead — action skipped."]
+
         if ability.id not in attacker.abilities:
             raise InvalidActionError(f"{attacker.name} does not know {ability.id}.")
 
@@ -310,23 +362,31 @@ class BattleEngine:
                 f"{ability.name} is still on cooldown for {attacker.name}."
             )
 
-        # Mana validation and spending
-        if not attacker.can_afford_ability(ability.mana_cost):
-            raise InsufficientManaError(
-                f"Not enough mana (have {attacker.mana}, need {ability.mana_cost})"
-            )
-        attacker.spend_mana(ability.mana_cost)
+        # Filter out dead targets
+        targets = [t for t in targets if t.is_alive()]
+        if not targets:
+            return [f"{attacker.name}'s targets are all defeated — action skipped."]
+
+        # Team mana validation and spending
+        if not self.can_team_afford(attacker, ability.mana_cost):
+            return [
+                f"{attacker.name} doesn't have enough team mana for {ability.name} — action skipped."
+            ]
+        self.spend_team_mana(attacker, ability.mana_cost)
 
         attacker.cooldowns[ability.id] = ability.cooldown
         logs: list[str] = []
         if ability.mana_cost > 0:
-            logs.append(f"{attacker.name} uses {ability.name} (-{ability.mana_cost} MP)")
+            team_mana = self.get_team_mana(attacker)
+            logs.append(f"{attacker.name} uses {ability.name} (-{ability.mana_cost} MP, team: {team_mana}/{TEAM_MAX_MANA})")
         logs.extend(resolve_ability(attacker, targets, ability))
         return logs
 
     def bot_turn(self) -> list[str]:
         """Ask the bot AI for a move and execute it."""
-        bot, ability, targets = self.bot_ai.choose_action(self.bot_team, self.player_team)
+        bot, ability, targets = self.bot_ai.choose_action(
+            self.bot_team, self.player_team, self.bot_team_mana
+        )
         return self.execute_action(bot, ability, targets)
 
     def end_turn(self) -> bool:

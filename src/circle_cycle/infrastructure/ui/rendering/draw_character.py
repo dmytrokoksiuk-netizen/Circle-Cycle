@@ -178,37 +178,6 @@ def draw_circle_character(
     )
     bar_y += bar_height + 20
 
-    # Mana bar (blue, thin) — below HP bar
-    if character.max_mana > 0:
-        mana_ratio = max(0, character.mana / character.max_mana)
-        mana_bar_height = 5 * scale
-        canvas.create_rectangle(
-            x - bar_width // 2,
-            bar_y,
-            x + bar_width // 2,
-            bar_y + mana_bar_height,
-            fill="#1e293b",
-            outline="black",
-        )
-        if mana_ratio > 0:
-            canvas.create_rectangle(
-                x - bar_width // 2,
-                bar_y,
-                x - bar_width // 2 + int(bar_width * mana_ratio),
-                bar_y + mana_bar_height,
-                fill="#3b82f6",
-                outline="",
-            )
-        # Mana numeric
-        canvas.create_text(
-            x,
-            bar_y + mana_bar_height + 8,
-            text=f"MP {character.mana}/{character.max_mana}",
-            fill="#60a5fa",
-            font=("Arial", 8),
-        )
-        bar_y += mana_bar_height + 16
-
     # Ultimate charge display
     from circle_cycle.domain.constants.game import ULTIMATE_CHARGE_REQUIRED
 

@@ -33,9 +33,9 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             healed = target.current_hp - old_hp
             if healed > 0:
                 applied = True
-                logs.append(f"{attacker.name} heals {target.name} for {healed} HP with {ability.name}.")
+                logs.append(f"{attacker.name} uses {ability.name} → {target.name} for +{healed} HP.")
             else:
-                logs.append(f"{target.name} is already at full HP.")
+                logs.append(f"{attacker.name} uses {ability.name} → {target.name} (already full HP).")
 
     # --- Shield Restore ---
     if ability.shield_restore > 0:
@@ -43,7 +43,7 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             restored = target.restore_shield(ability.shield_restore)
             if restored > 0:
                 applied = True
-                logs.append(f"{target.name} restores {restored} shield from {ability.name}.")
+                logs.append(f"{attacker.name} uses {ability.name} → {target.name} restores {restored} shield.")
 
     # --- Buff ---
     if ability.buff_stat and ability.buff_amount > 0:
@@ -51,8 +51,8 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             target.apply_buff(ability.buff_stat, ability.buff_amount, ability.buff_duration)
             applied = True
             logs.append(
-                f"{target.name} gains +{ability.buff_amount} {ability.buff_stat.upper()} "
-                f"for {ability.buff_duration} turns from {ability.name}."
+                f"{attacker.name} uses {ability.name} → {target.name} "
+                f"({ability.buff_stat.upper()} +{ability.buff_amount} for {ability.buff_duration}t)."
             )
 
     # --- Debuff ---
@@ -61,8 +61,8 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             target.apply_debuff(ability.debuff_stat, ability.debuff_amount, ability.debuff_duration)
             applied = True
             logs.append(
-                f"{target.name} suffers -{ability.debuff_amount} {ability.debuff_stat.upper()} "
-                f"for {ability.debuff_duration} turns from {ability.name}."
+                f"{attacker.name} uses {ability.name} → {target.name} "
+                f"({ability.debuff_stat.upper()} -{ability.debuff_amount} for {ability.debuff_duration}t)."
             )
 
     # --- Shield Destroy ---
@@ -72,7 +72,7 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             if destroyed > 0:
                 target.shield -= destroyed
                 applied = True
-                logs.append(f"{target.name} loses {destroyed} shield from {ability.name}!")
+                logs.append(f"{attacker.name} uses {ability.name} → {target.name} loses {destroyed} shield!")
             if target.shield == 0 and destroyed > 0:
                 logs.append(f"{target.name}'s shield is broken!")
 
@@ -102,8 +102,8 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
                 if dealt > 0:
                     applied = True
                 logs.append(
-                    f"{attacker.name} pierces {target.name} for {effective_damage} damage "
-                    f"with {ability.name} (ignores shield)."
+                    f"{attacker.name} uses {ability.name} → {target.name} for {effective_damage} damage "
+                    f"(ignores shield)."
                 )
         else:
             # Normal damage flow
@@ -139,24 +139,24 @@ def _format_damage_log(
     effective_damage: int,
     result: dict[str, int | bool],
 ) -> str:
-    """Format a damage log line based on the damage result breakdown."""
+    """Format a damage log line showing attacker → target with damage breakdown."""
     shield_dmg = result["shield_damage"]
     hp_dmg = result["hp_damage"]
     total = shield_dmg + hp_dmg
 
     if total == 0:
-        return f"{target.name}'s shield blocks {ability.name}."
+        return f"{attacker.name} uses {ability.name} → {target.name} (blocked by shield)."
 
     if shield_dmg > 0 and hp_dmg > 0:
         return (
-            f"{attacker.name} hits {target.name} for {total} damage with {ability.name} "
+            f"{attacker.name} uses {ability.name} → {target.name} for {total} damage "
             f"({shield_dmg} absorbed by shield, {hp_dmg} to HP)."
         )
     if shield_dmg > 0:
         return (
-            f"{attacker.name} hits {target.name} for {shield_dmg} damage with {ability.name} "
+            f"{attacker.name} uses {ability.name} → {target.name} for {shield_dmg} damage "
             f"(absorbed by shield)."
         )
     return (
-        f"{attacker.name} hits {target.name} for {hp_dmg} damage with {ability.name}."
+        f"{attacker.name} uses {ability.name} → {target.name} for {hp_dmg} damage."
     )

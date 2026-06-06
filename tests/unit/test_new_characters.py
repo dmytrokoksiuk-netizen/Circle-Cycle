@@ -56,7 +56,7 @@ class TestHealAbility:
         )
         logs = resolve_ability(healer, [target], ability)
         assert target.current_hp == 90
-        assert any("heals" in log for log in logs)
+        assert any("+30 HP" in log for log in logs)
 
     def test_heal_caps_at_max_hp(self) -> None:
         """Healing cannot exceed max HP."""
@@ -92,7 +92,7 @@ class TestBuffAbility:
         )
         logs = resolve_ability(buffer, [target], ability)
         assert target.effective_attack == 22  # 14 + 8
-        assert any("+8" in log and "ATTACK" in log for log in logs)
+        assert any("ATTACK +8" in log for log in logs)
 
     def test_buff_expires_after_duration(self) -> None:
         """Buff should expire after N turns."""
@@ -132,7 +132,7 @@ class TestDebuffAbility:
         )
         logs = resolve_ability(debuffer, [target], ability)
         assert target.effective_attack == 12  # 20 - 8
-        assert any("-8" in log and "ATTACK" in log for log in logs)
+        assert any("ATTACK -8" in log for log in logs)
 
     def test_debuff_expires_after_duration(self) -> None:
         """Debuff should expire after N turns."""

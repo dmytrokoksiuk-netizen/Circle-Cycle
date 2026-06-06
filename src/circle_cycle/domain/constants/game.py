@@ -10,6 +10,7 @@ ATTACK_SCALING_DIVISOR: int = 5
 # Number of Special uses required to unlock an Ultimate
 ULTIMATE_CHARGE_REQUIRED: int = 2
 
-# Mana system constants
-MANA_REGEN_PER_TURN: int = 2
+# Shared team mana system constants
+TEAM_MAX_MANA: int = 15
+TEAM_MANA_REGEN_PER_TURN: int = 3
 NORMAL_ATTACK_MANA_COST: int = 0

@@ -7,7 +7,7 @@ import copy
 import pytest
 
 from circle_cycle.application.services.battle_engine import BattleEngine
-from circle_cycle.domain.constants.game import MANA_REGEN_PER_TURN
+from circle_cycle.domain.constants.game import TEAM_MAX_MANA, TEAM_MANA_REGEN_PER_TURN
 from circle_cycle.domain.entities.character import Character
 from circle_cycle.domain.enums.ability_type import AbilityType
 from circle_cycle.domain.enums.character_size import CharacterSize
@@ -20,7 +20,7 @@ from tests.conftest import InMemoryDataRepository
 
 
 class TestManaCharacter:
-    """Tests for mana methods on Character entity."""
+    """Tests for mana methods on Character entity (individual mana still exists for backward compat)."""
 
     def test_character_starts_with_full_mana(self, repository: InMemoryDataRepository) -> None:
         """Character should start with mana equal to max_mana."""
@@ -80,11 +80,23 @@ class TestManaCharacter:
         assert punch.mana_cost == 0
 
 
-class TestManaRegen:
-    """Tests for mana regeneration in BattleEngine."""
+class TestTeamMana:
+    """Tests for shared team mana in BattleEngine."""
 
-    def test_mana_regen_at_round_end(self, repository: InMemoryDataRepository) -> None:
-        """Mana should regenerate when a round ends."""
+    def test_team_mana_starts_at_max(self, repository: InMemoryDataRepository) -> None:
+        """Both teams start with TEAM_MAX_MANA."""
+        chars = repository.load_characters()
+        player_team = [copy.deepcopy(chars["ace"]), copy.deepcopy(chars["nova"]), copy.deepcopy(chars["stone"])]
+        bot_team = [copy.deepcopy(chars["nova"]), copy.deepcopy(chars["nova"]), copy.deepcopy(chars["stone"])]
+
+        engine = BattleEngine(player_team, bot_team, repository)
+        engine.start_battle()
+
+        assert engine.player_team_mana == TEAM_MAX_MANA
+        assert engine.bot_team_mana == TEAM_MAX_MANA
+
+    def test_team_mana_regen_at_round_end(self, repository: InMemoryDataRepository) -> None:
+        """Team mana should regenerate when a round ends."""
         chars = repository.load_characters()
         player_team = [copy.deepcopy(chars["ace"])]
         bot_team = [copy.deepcopy(chars["nova"])]
@@ -92,18 +104,17 @@ class TestManaRegen:
         engine = BattleEngine(player_team, bot_team, repository)
         engine.start_battle()
 
-        # Spend some mana
-        player_team[0].spend_mana(5)
-        assert player_team[0].mana == 7
+        # Spend some team mana
+        engine.player_team_mana = 10
 
         # Simulate round end (advance turn order until round wraps)
         engine.end_turn()
         engine.end_turn()  # wraps around, triggers regen
 
-        assert player_team[0].mana == 7 + MANA_REGEN_PER_TURN
+        assert engine.player_team_mana == 10 + TEAM_MANA_REGEN_PER_TURN
 
-    def test_mana_regen_does_not_exceed_max(self, repository: InMemoryDataRepository) -> None:
-        """Mana regen should not exceed max_mana."""
+    def test_team_mana_regen_caps_at_max(self, repository: InMemoryDataRepository) -> None:
+        """Team mana regen should not exceed TEAM_MAX_MANA."""
         chars = repository.load_characters()
         player_team = [copy.deepcopy(chars["ace"])]
         bot_team = [copy.deepcopy(chars["nova"])]
@@ -111,20 +122,32 @@ class TestManaRegen:
         engine = BattleEngine(player_team, bot_team, repository)
         engine.start_battle()
 
-        # Already at full mana
-        assert player_team[0].mana == player_team[0].max_mana
+        # Already at full
         engine.end_turn()
         engine.end_turn()
-        assert player_team[0].mana == player_team[0].max_mana
+        assert engine.player_team_mana == TEAM_MAX_MANA
+
+    def test_can_team_afford(self, repository: InMemoryDataRepository) -> None:
+        """can_team_afford should check the team pool."""
+        chars = repository.load_characters()
+        player_team = [copy.deepcopy(chars["ace"])]
+        bot_team = [copy.deepcopy(chars["nova"])]
+
+        engine = BattleEngine(player_team, bot_team, repository)
+        engine.start_battle()
+        engine.player_team_mana = 3
+
+        assert engine.can_team_afford(player_team[0], 3) is True
+        assert engine.can_team_afford(player_team[0], 4) is False
 
 
 class TestManaInBattle:
     """Tests for mana enforcement in BattleEngine."""
 
-    def test_engine_rejects_special_when_mana_insufficient(
+    def test_engine_rejects_special_when_team_mana_insufficient(
         self, repository: InMemoryDataRepository
     ) -> None:
-        """BattleEngine should reject Special when character lacks mana."""
+        """BattleEngine should reject Special when team lacks mana."""
         chars = repository.load_characters()
         player_team = [copy.deepcopy(chars["ace"]), copy.deepcopy(chars["nova"]), copy.deepcopy(chars["stone"])]
         bot_team = [copy.deepcopy(chars["nova"]), copy.deepcopy(chars["nova"]), copy.deepcopy(chars["stone"])]
@@ -135,8 +158,8 @@ class TestManaInBattle:
         abilities = repository.load_abilities()
         special = abilities["fire_spin"]
 
-        # Drain mana from first character
-        player_team[0].mana = 2  # needs 5 for fire_spin
+        # Drain team mana
+        engine.player_team_mana = 2  # needs 5 for fire_spin
 
         with pytest.raises(InsufficientManaError):
             engine.submit_player_action(special, bot_team[0])
@@ -144,7 +167,7 @@ class TestManaInBattle:
     def test_bot_falls_back_to_normal_when_cant_afford_special(
         self, repository: InMemoryDataRepository
     ) -> None:
-        """Bot should use Normal Attack when mana is too low for Special."""
+        """Bot should use Normal Attack when team mana is too low for Special."""
         chars = repository.load_characters()
         bot_team = [copy.deepcopy(chars["ace"])]
         player_team = [copy.deepcopy(chars["nova"])]
@@ -152,10 +175,8 @@ class TestManaInBattle:
         engine = BattleEngine(player_team, bot_team, repository)
         engine.start_battle()
 
-        # Drain bot mana
-        bot_team[0].mana = 0
-
-        plans = engine.bot_ai.generate_plan(bot_team, player_team)
+        # Bot team has no mana
+        plans = engine.bot_ai.generate_plan(bot_team, player_team, team_mana=0)
         assert len(plans) == 1
         assert plans[0].ability.type == AbilityType.NORMAL
 

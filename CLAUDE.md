@@ -76,13 +76,13 @@ Runtime JSON definitions live in `data/`:
 ### Execution Order
 Battle execution order is determined by team speed totals: the sum of speed for all living characters on a team. The faster team executes all planned actions first; ties favor the player.
 
-### Mana System
-Each character has a mana pool (`max_mana`). Abilities have a `mana_cost` field:
+### Mana System (Shared Team Pool)
+Each team has ONE shared mana pool (`TEAM_MAX_MANA = 15`). All characters on a team draw from the same pool:
 - **Normal Attack**: Always free (0 mana) — player always has a fallback.
 - **Special Attack**: Costs 3-5 mana depending on the ability.
 - **Ultimate**: Free (0 mana) — gated by charge mechanic instead.
 
-Mana regenerates by `MANA_REGEN_PER_TURN` (2) at the start of each new round, before the planning phase. If a character cannot afford a Special, the button is greyed out and the action is rejected.
+Team mana regenerates by `TEAM_MANA_REGEN_PER_TURN` (3) at the start of each new round. If the team cannot afford a Special, the button is greyed out. One shared bar is displayed on the battle screen for each team.
 
 ### Shield System
 Each character has a numeric shield (`max_shield`). Damage hits shield first, then HP:
@@ -125,7 +125,8 @@ Characters accumulate charges by using Special abilities (2 charges unlock Ultim
 | `CARD_CHOICES_PER_ROUND` | 3 | Base card options per round |
 | `ATTACK_SCALING_DIVISOR` | 5 | Attack stat scaling for damage |
 | `ULTIMATE_CHARGE_REQUIRED` | 2 | Special uses to unlock Ultimate |
-| `MANA_REGEN_PER_TURN` | 2 | Mana restored at start of each round |
+| `TEAM_MAX_MANA` | 15 | Shared mana pool per team |
+| `TEAM_MANA_REGEN_PER_TURN` | 3 | Team mana restored at start of each round |
 | `NORMAL_ATTACK_MANA_COST` | 0 | Normal attacks are always free |
 
 ## Commands

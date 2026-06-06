@@ -45,7 +45,8 @@ class BotAI:
             return [min(alive_enemies, key=lambda c: (c.current_hp, c.name))]
 
     def choose_action(
-        self, bot_team: list[Character], player_team: list[Character]
+        self, bot_team: list[Character], player_team: list[Character],
+        team_mana: int = 999,
     ) -> tuple[Character, Ability, list[Character]]:
         """Choose a bot action and return the attacker, ability, and targets."""
         alive_bots = [character for character in bot_team if character.is_alive()]
@@ -60,7 +61,7 @@ class BotAI:
             if ability_id in self.abilities
             and self.abilities[ability_id].type != AbilityType.NORMAL
             and bot.cooldowns.get(ability_id, 0) == 0
-            and bot.can_afford_ability(self.abilities[ability_id].mana_cost)
+            and self.abilities[ability_id].mana_cost <= team_mana
         ]
 
         if special_candidates:
@@ -82,26 +83,27 @@ class BotAI:
         targets = self._resolve_targets(bot, ability, bot_team, player_team)
         return bot, ability, targets
 
-    def generate_plan(self, bot_team: list[Character], player_team: list[Character]) -> list["PlannedAction"]:
+    def generate_plan(self, bot_team: list[Character], player_team: list[Character], team_mana: int = 999) -> list["PlannedAction"]:
         """Generate a planned action for each living bot character.
 
         Bot will only use Ultimate if the character's charge counter indicates it's ready.
         Prefer Special over Normal when charge is 1 to help unlock Ultimate.
-        Checks mana affordability before selecting abilities.
+        Checks team mana affordability before selecting abilities.
         Uses target_type to determine proper targeting (ally vs enemy).
         """
         from circle_cycle.domain.value_objects.planned_action import PlannedAction
 
+        remaining_mana = team_mana
         plans: list[PlannedAction] = []
         for bot in [b for b in bot_team if b.is_alive()]:
-            # Build candidate lists (mana-aware)
+            # Build candidate lists (team mana-aware)
             special_candidates = [
                 self.abilities[ability_id]
                 for ability_id in bot.abilities
                 if ability_id in self.abilities
                 and self.abilities[ability_id].type == AbilityType.SPECIAL
                 and bot.cooldowns.get(ability_id, 0) == 0
-                and bot.can_afford_ability(self.abilities[ability_id].mana_cost)
+                and self.abilities[ability_id].mana_cost <= remaining_mana
             ]
 
             ultimate_candidate = next(
@@ -111,7 +113,7 @@ class BotAI:
                     if ability_id in self.abilities
                     and self.abilities[ability_id].type == AbilityType.ULTIMATE
                     and bot.cooldowns.get(ability_id, 0) == 0
-                    and bot.can_afford_ability(self.abilities[ability_id].mana_cost)
+                    and self.abilities[ability_id].mana_cost <= remaining_mana
                 ),
                 None,
             )
@@ -155,6 +157,8 @@ class BotAI:
             if not targets:
                 continue
 
+            # Deduct mana cost from remaining pool for planning
+            remaining_mana -= ability.mana_cost
             plans.append(PlannedAction(actor=bot, ability=ability, targets=targets))
 
         return plans
