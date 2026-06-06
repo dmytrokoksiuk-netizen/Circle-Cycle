@@ -49,7 +49,7 @@ class BattleScreen(tk.Frame):
 
         self.normal_button = tk.Button(
             control_frame,
-            text="Normal Attack",
+            text="Normal Attack (free)",
             command=lambda: self.handle_action("normal"),
             bg="#0f766e",
             fg="white",
@@ -69,7 +69,7 @@ class BattleScreen(tk.Frame):
 
         self.ultimate_button = tk.Button(
             control_frame,
-            text="Ultimate",
+            text="Ultimate (free)",
             command=lambda: self.handle_action("ultimate"),
             bg="#dc2626",
             fg="white",
@@ -122,7 +122,7 @@ class BattleScreen(tk.Frame):
         self.turn_label.config(text=f"Turn: {current.name} ({side})")
 
     def _refresh_buttons(self) -> None:
-        """Enable or disable action buttons based on current turn and cooldowns."""
+        """Enable or disable action buttons based on current turn, cooldowns, and mana."""
         if self.app.engine is None:
             return
 
@@ -148,8 +148,17 @@ class BattleScreen(tk.Frame):
                 button.config(state="disabled")
                 continue
 
-            # Otherwise leave enabled
-            button.config(state="normal")
+            # Mana check: disable if can't afford
+            if not current.can_afford_ability(ability.mana_cost):
+                button.config(state="disabled")
+
+            # Update button text with mana cost
+            if ability.mana_cost > 0:
+                button.config(text=f"{ability.name} ({ability.mana_cost} MP)")
+            elif ability_type == "ultimate":
+                button.config(text=f"{ability.name} (free)")
+            else:
+                button.config(text=f"{ability.name} (free)")
 
     def handle_action(self, ability_type: str) -> None:
         """Handle a player action request by showing an ability preview before proceeding."""
@@ -195,6 +204,11 @@ class BattleScreen(tk.Frame):
         damage_label = tk.Label(modal, text=f"Damage: {ability.damage}", bg="#0b1220", fg="#f97316", font=("Arial", 14, "bold"))
         damage_label.pack(padx=12, pady=(0, 6))
 
+        # Mana cost display
+        mana_text = f"Mana Cost: {ability.mana_cost} MP" if ability.mana_cost > 0 else "Mana Cost: Free"
+        mana_label = tk.Label(modal, text=mana_text, bg="#0b1220", fg="#60a5fa", font=("Arial", 11))
+        mana_label.pack(padx=12, pady=(0, 6))
+
         effects = []
         if ability.effect is not None:
             effects.append(str(ability.effect).title())
@@ -221,6 +235,9 @@ class BattleScreen(tk.Frame):
         if ability.type == AbilityType.ULTIMATE and not getattr(actor, "is_ultimate_ready", False):
             confirm_state = "disabled"
             confirm_text = f"Not Ready ({getattr(actor, 'special_use_count', 0)}/2)"
+        elif not actor.can_afford_ability(ability.mana_cost):
+            confirm_state = "disabled"
+            confirm_text = f"Not enough mana ({actor.mana}/{ability.mana_cost})"
         else:
             confirm_text = "Confirm"
 
@@ -318,7 +335,31 @@ class BattleScreen(tk.Frame):
                 elif "Enemy acts first" in log or "Enemy team speed" in log and "Enemy acts first" in log:
                     show_banner = ">> Enemy moves first! <<"
 
-            # Damage pattern: "<Attacker> hits <Target> for <N> damage"
+            # Shield broken event
+            if "shield is broken" in log:
+                tname = log.split("'s shield")[0]
+                floating_events.append((tname, "SHIELD BROKEN!", "#f59e0b"))
+                continue
+
+            # Damage with shield absorption pattern
+            m_shield = re.search(r"hits (.+?) for (\d+) damage.+?(\d+) absorbed by shield, (\d+) to HP", log)
+            if m_shield:
+                target_name = m_shield.group(1)
+                shield_dmg = int(m_shield.group(3))
+                hp_dmg = int(m_shield.group(4))
+                floating_events.append((target_name, f"-{shield_dmg}", "#06b6d4"))
+                floating_events.append((target_name, f"-{hp_dmg}", "#ef4444"))
+                continue
+
+            # Damage absorbed by shield only
+            m_shield_only = re.search(r"hits (.+?) for (\d+) damage.+?\(absorbed by shield\)", log)
+            if m_shield_only:
+                target_name = m_shield_only.group(1)
+                amount = int(m_shield_only.group(2))
+                floating_events.append((target_name, f"-{amount}", "#06b6d4"))
+                continue
+
+            # Standard damage pattern: "<Attacker> hits <Target> for <N> damage"
             m = re.search(r"hits (.+?) for (\d+) damage", log)
             if m:
                 target_name = m.group(1)

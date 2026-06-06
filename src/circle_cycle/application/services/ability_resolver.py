@@ -15,6 +15,8 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
     This function also updates the attacker's special-use charge counter when a
     Special ability successfully applies (damage or effect) and resets the
     counter after an Ultimate is used.
+
+    Mana is expected to have been spent before calling this function.
     """
     if not targets:
         return [f"{attacker.name} used {ability.name}, but no targets were available."]
@@ -29,8 +31,6 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             target.status_effects.append(StatusEffect.SHIELD)
             logs.append(f"{target.name} gains a shield from {ability.name}.")
             applied = True
-        # Special-case: shield application still counts as having applied
-        # Continue to post-processing below for charge updates
 
     if ability.effect == StatusEffect.BURN:
         for target in targets:
@@ -42,33 +42,26 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
 
     if ability.type == AbilityType.ULTIMATE and len(targets) > 1:
         for target in targets:
-            if StatusEffect.SHIELD in target.status_effects:
-                target.status_effects.remove(StatusEffect.SHIELD)
-                logs.append(f"{target.name}'s shield blocks {ability.name}.")
-                continue
-            dealt = target.take_damage(effective_damage)
-            if dealt > 0:
+            result = target.take_damage(effective_damage)
+            if result["shield_damage"] > 0 or result["hp_damage"] > 0:
                 applied = True
-            logs.append(
-                f"{attacker.name} hits {target.name} for {effective_damage} "
-                f"damage with {ability.name}."
-            )
+            log_line = _format_damage_log(attacker, target, ability, effective_damage, result)
+            logs.append(log_line)
+            if result["shield_broken"]:
+                logs.append(f"{target.name}'s shield is broken!")
         # Reset ultimate charge for attacker
         attacker.reset_special_count()
         logs.append(f"{attacker.name} unleashes {ability.name}! Charge reset.")
         return logs
 
     for target in targets:
-        if StatusEffect.SHIELD in target.status_effects:
-            target.status_effects.remove(StatusEffect.SHIELD)
-            logs.append(f"{target.name}'s shield blocks {ability.name}.")
-            continue
-        dealt = target.take_damage(effective_damage)
-        if dealt > 0:
+        result = target.take_damage(effective_damage)
+        if result["shield_damage"] > 0 or result["hp_damage"] > 0:
             applied = True
-        logs.append(
-            f"{attacker.name} hits {target.name} for {effective_damage} damage with {ability.name}."
-        )
+        log_line = _format_damage_log(attacker, target, ability, effective_damage, result)
+        logs.append(log_line)
+        if result["shield_broken"]:
+            logs.append(f"{target.name}'s shield is broken!")
 
     # After resolving, update special-use charge for Special abilities
     if ability.type == AbilityType.SPECIAL and applied:
@@ -80,3 +73,33 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             logs.append(f"{attacker.name}'s Ultimate is now READY!")
 
     return logs
+
+
+def _format_damage_log(
+    attacker: Character,
+    target: Character,
+    ability: Ability,
+    effective_damage: int,
+    result: dict[str, int | bool],
+) -> str:
+    """Format a damage log line based on the damage result breakdown."""
+    shield_dmg = result["shield_damage"]
+    hp_dmg = result["hp_damage"]
+    total = shield_dmg + hp_dmg
+
+    if total == 0:
+        return f"{target.name}'s shield blocks {ability.name}."
+
+    if shield_dmg > 0 and hp_dmg > 0:
+        return (
+            f"{attacker.name} hits {target.name} for {total} damage with {ability.name} "
+            f"({shield_dmg} absorbed by shield, {hp_dmg} to HP)."
+        )
+    if shield_dmg > 0:
+        return (
+            f"{attacker.name} hits {target.name} for {shield_dmg} damage with {ability.name} "
+            f"(absorbed by shield)."
+        )
+    return (
+        f"{attacker.name} hits {target.name} for {hp_dmg} damage with {ability.name}."
+    )

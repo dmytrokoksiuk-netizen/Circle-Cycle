@@ -30,6 +30,7 @@ class InMemoryDataRepository(DataRepository):
                 damage=20,
                 effect=None,
                 cooldown=0,
+                mana_cost=0,
             ),
             "fire_spin": Ability(
                 id="fire_spin",
@@ -38,6 +39,7 @@ class InMemoryDataRepository(DataRepository):
                 damage=40,
                 effect=StatusEffect.BURN,
                 cooldown=2,
+                mana_cost=5,
             ),
             "earthquake": Ability(
                 id="earthquake",
@@ -46,6 +48,7 @@ class InMemoryDataRepository(DataRepository):
                 damage=35,
                 effect=None,
                 cooldown=3,
+                mana_cost=0,
             ),
         }
         self._characters: dict[str, Character] = {
@@ -58,6 +61,8 @@ class InMemoryDataRepository(DataRepository):
                 speed=18,
                 color="#14b8a6",
                 abilities=["punch", "fire_spin", "earthquake"],
+                max_mana=12,
+                max_shield=30,
             ),
             "nova": Character(
                 id="nova",
@@ -68,6 +73,8 @@ class InMemoryDataRepository(DataRepository):
                 speed=12,
                 color="#f59e0b",
                 abilities=["punch", "fire_spin", "earthquake"],
+                max_mana=10,
+                max_shield=20,
             ),
             "stone": Character(
                 id="stone",
@@ -78,6 +85,8 @@ class InMemoryDataRepository(DataRepository):
                 speed=8,
                 color="#64748b",
                 abilities=["punch", "fire_spin", "earthquake"],
+                max_mana=8,
+                max_shield=50,
             ),
         }
         self._cards: dict[str, Card] = {

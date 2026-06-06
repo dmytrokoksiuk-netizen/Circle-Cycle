@@ -7,6 +7,8 @@
     "attack": 12,
     "speed": 18,
     "color": "#14b8a6",
+    "max_mana": 12,
+    "max_shield": 30,
     "abilities": ["punch", "fire_spin", "earthquake", "shield_bash"]
   },
   {
@@ -17,6 +19,8 @@
     "attack": 14,
     "speed": 12,
     "color": "#f59e0b",
+    "max_mana": 10,
+    "max_shield": 20,
     "abilities": ["quick_jab", "lightning_stab", "earthquake", "shield_bash"]
   },
   {
@@ -27,6 +31,8 @@
     "attack": 16,
     "speed": 8,
     "color": "#64748b",
+    "max_mana": 8,
+    "max_shield": 50,
     "abilities": ["punch", "lightning_stab", "earthquake", "shield_bash"]
   }
 ]

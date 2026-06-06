@@ -47,11 +47,13 @@ User Click → Screen (infrastructure/ui)
 ### Domain (Layer 1)
 Pure business rules. No imports from infrastructure or application.
 - **Entities**: `Character`, `Ability`, `Card` — plain dataclasses with behavior
+  - `Character`: id, name, size, hp, current_hp, attack, speed, color, abilities, max_mana, mana, max_shield, shield, status_effects, cooldowns, special_use_count
+  - `Ability`: id, name, type, damage, effect, cooldown, description, mana_cost
 - **Enums**: `AbilityType`, `CharacterSize`, `StatusEffect`, `CardStat`
 - **Interfaces**: `DataRepository` ABC — port for data loading
 - **Value Objects**: `CardEffect` — immutable frozen dataclass
-- **Exceptions**: `BattleNotStartedError`, `InvalidActionError`, etc.
-- **Constants**: `BURN_DAMAGE_PER_STACK`, `TEAM_SIZE`, etc.
+- **Exceptions**: `BattleNotStartedError`, `InvalidActionError`, `InsufficientManaError`, etc.
+- **Constants**: `BURN_DAMAGE_PER_STACK`, `TEAM_SIZE`, `MANA_REGEN_PER_TURN`, etc.
 
 ### Application (Layer 2)
 Orchestration and use cases. Depends only on domain.

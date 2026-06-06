@@ -8,7 +8,11 @@ import random
 from circle_cycle.application.services.ability_resolver import resolve_ability
 from circle_cycle.application.services.bot_ai import BotAI
 from circle_cycle.application.services.card_applicator import apply_card
-from circle_cycle.domain.constants.game import CARD_CHOICES_PER_ROUND, TEAM_SIZE
+from circle_cycle.domain.constants.game import (
+    CARD_CHOICES_PER_ROUND,
+    MANA_REGEN_PER_TURN,
+    TEAM_SIZE,
+)
 from circle_cycle.domain.entities.ability import Ability
 from circle_cycle.domain.entities.card import Card
 from circle_cycle.domain.entities.character import Character
@@ -18,6 +22,7 @@ from circle_cycle.domain.value_objects.planned_action import PlannedAction
 from circle_cycle.domain.exceptions.battle import (
     AbilityOnCooldownError,
     BattleNotStartedError,
+    InsufficientManaError,
     InvalidActionError,
     InvalidTargetError,
 )
@@ -99,6 +104,21 @@ class BattleEngine:
                 return ability
         return None
 
+    # --- Mana helpers ---
+    def regenerate_mana(self) -> list[str]:
+        """Restore mana for all living characters. Returns log lines."""
+        logs: list[str] = []
+        for character in [*self.player_team, *self.bot_team]:
+            if character.is_alive() and character.max_mana > 0:
+                old_mana = character.mana
+                character.restore_mana(MANA_REGEN_PER_TURN)
+                if character.mana > old_mana:
+                    logs.append(
+                        f"{character.name} regenerates {character.mana - old_mana} mana "
+                        f"(now {character.mana}/{character.max_mana})"
+                    )
+        return logs
+
     # --- Planning phase API (Task 1) ---
     def submit_player_action(self, ability: Ability, target: Character) -> int:
         """Submit a planned action for the next player character in planning order.
@@ -121,6 +141,12 @@ class BattleEngine:
         if ability.type == AbilityType.ULTIMATE and not getattr(attacker, "is_ultimate_ready", False):
             raise InvalidActionError(
                 f"Ultimate not ready ({attacker.special_use_count}/2 charges)"
+            )
+
+        # Mana validation
+        if not attacker.can_afford_ability(ability.mana_cost):
+            raise InsufficientManaError(
+                f"Not enough mana (have {attacker.mana}, need {ability.mana_cost})"
             )
 
         targets = [target] if target is not None else []
@@ -175,6 +201,16 @@ class BattleEngine:
                 logs.append(f"{actor.name}'s targets are dead — action skipped.")
                 continue
 
+            # Spend mana at execution time
+            if not actor.can_afford_ability(ability.mana_cost):
+                logs.append(
+                    f"{actor.name} doesn't have enough mana for {ability.name} — action skipped."
+                )
+                continue
+            actor.spend_mana(ability.mana_cost)
+            if ability.mana_cost > 0:
+                logs.append(f"{actor.name} uses {ability.name} (-{ability.mana_cost} MP)")
+
             actor.cooldowns[ability.id] = ability.cooldown
             logs.extend(resolve_ability(actor, targets, ability))
 
@@ -189,6 +225,16 @@ class BattleEngine:
             if not targets:
                 logs.append(f"{actor.name}'s targets are dead — action skipped.")
                 continue
+
+            # Spend mana at execution time
+            if not actor.can_afford_ability(ability.mana_cost):
+                logs.append(
+                    f"{actor.name} doesn't have enough mana for {ability.name} — action skipped."
+                )
+                continue
+            actor.spend_mana(ability.mana_cost)
+            if ability.mana_cost > 0:
+                logs.append(f"{actor.name} uses {ability.name} (-{ability.mana_cost} MP)")
 
             actor.cooldowns[ability.id] = ability.cooldown
             logs.extend(resolve_ability(actor, targets, ability))
@@ -242,8 +288,18 @@ class BattleEngine:
                 f"{ability.name} is still on cooldown for {attacker.name}."
             )
 
+        # Mana validation and spending
+        if not attacker.can_afford_ability(ability.mana_cost):
+            raise InsufficientManaError(
+                f"Not enough mana (have {attacker.mana}, need {ability.mana_cost})"
+            )
+        attacker.spend_mana(ability.mana_cost)
+
         attacker.cooldowns[ability.id] = ability.cooldown
-        logs = resolve_ability(attacker, targets, ability)
+        logs: list[str] = []
+        if ability.mana_cost > 0:
+            logs.append(f"{attacker.name} uses {ability.name} (-{ability.mana_cost} MP)")
+        logs.extend(resolve_ability(attacker, targets, ability))
         return logs
 
     def bot_turn(self) -> list[str]:
@@ -268,6 +324,8 @@ class BattleEngine:
             self.card_phase_active = True
             self.pending_card_choices = self.get_card_choices()
             self._apply_bot_card_phase()
+            # Regenerate mana at start of new round (before next planning phase)
+            self.regenerate_mana()
             return True
 
         return False

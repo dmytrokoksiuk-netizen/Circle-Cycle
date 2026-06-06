@@ -106,14 +106,47 @@ def draw_circle_character(
         width=2,
     )
 
-    hp_ratio = max(0, character.current_hp / character.hp)
     bar_width = 80 * scale
     bar_height = 8 * scale
+    bar_y = y + radius + 10
+
+    # Shield bar (cyan) — above HP bar
+    if character.max_shield > 0:
+        shield_ratio = max(0, character.shield / character.max_shield)
+        canvas.create_rectangle(
+            x - bar_width // 2,
+            bar_y,
+            x + bar_width // 2,
+            bar_y + bar_height,
+            fill="#1e293b",
+            outline="black",
+        )
+        if shield_ratio > 0:
+            canvas.create_rectangle(
+                x - bar_width // 2,
+                bar_y,
+                x - bar_width // 2 + int(bar_width * shield_ratio),
+                bar_y + bar_height,
+                fill="#06b6d4",
+                outline="",
+            )
+        # Shield numeric
+        canvas.create_text(
+            x,
+            bar_y + bar_height + 10,
+            text=f"\U0001f6e1 {character.shield}/{character.max_shield}",
+            fill="#06b6d4",
+            font=("Arial", 8),
+        )
+        bar_y += bar_height + 20
+
+    # HP bar
+    hp_ratio = max(0, character.current_hp / character.hp)
     canvas.create_rectangle(
         x - bar_width // 2,
-        y + radius + 10,
+        bar_y,
         x + bar_width // 2,
-        y + radius + 10 + bar_height,
+        bar_y + bar_height,
         fill="#4b5563",
         outline="black",
     )
@@ -128,9 +161,9 @@ def draw_circle_character(
 
     canvas.create_rectangle(
         x - bar_width // 2,
-        y + radius + 10,
+        bar_y,
         x - bar_width // 2 + int(bar_width * hp_ratio),
-        y + radius + 10 + bar_height,
+        bar_y + bar_height,
         fill=bar_color,
         outline="",
     )
@@ -138,15 +171,60 @@ def draw_circle_character(
     # Numeric HP display
     canvas.create_text(
         x,
-        y + radius + 30,
-        text=f"{character.current_hp} / {character.hp}",
+        bar_y + bar_height + 10,
+        text=f"{character.current_hp}/{character.hp}",
         fill="#e5e7eb",
         font=("Arial", 10, "bold"),
     )
+    bar_y += bar_height + 20
+
+    # Mana bar (blue, thin) — below HP bar
+    if character.max_mana > 0:
+        mana_ratio = max(0, character.mana / character.max_mana)
+        mana_bar_height = 5 * scale
+        canvas.create_rectangle(
+            x - bar_width // 2,
+            bar_y,
+            x + bar_width // 2,
+            bar_y + mana_bar_height,
+            fill="#1e293b",
+            outline="black",
+        )
+        if mana_ratio > 0:
+            canvas.create_rectangle(
+                x - bar_width // 2,
+                bar_y,
+                x - bar_width // 2 + int(bar_width * mana_ratio),
+                bar_y + mana_bar_height,
+                fill="#3b82f6",
+                outline="",
+            )
+        # Mana numeric
+        canvas.create_text(
+            x,
+            bar_y + mana_bar_height + 8,
+            text=f"MP {character.mana}/{character.max_mana}",
+            fill="#60a5fa",
+            font=("Arial", 8),
+        )
+        bar_y += mana_bar_height + 16
+
+    # Ultimate charge display
+    from circle_cycle.domain.constants.game import ULTIMATE_CHARGE_REQUIRED
 
     canvas.create_text(
         x,
-        y + radius + 48,
+        bar_y + 4,
+        text=f"\u26a1 {character.special_use_count}/{ULTIMATE_CHARGE_REQUIRED}",
+        fill="#fbbf24",
+        font=("Arial", 8),
+    )
+    bar_y += 16
+
+    # Character name
+    canvas.create_text(
+        x,
+        bar_y + 4,
         text=character.name,
         fill="white",
         font=("Arial", 10, "bold"),

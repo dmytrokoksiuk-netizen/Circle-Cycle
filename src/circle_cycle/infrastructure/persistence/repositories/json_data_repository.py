@@ -57,6 +57,7 @@ class JsonDataRepository(DataRepository):
                     damage=int(entry["damage"]),
                     effect=effect,
                     cooldown=int(entry["cooldown"]),
+                    mana_cost=int(entry.get("mana_cost", 0)),
                 )
             except KeyError as exc:
                 raise DataLoadError(f"Ability entry is missing required key: {exc}") from exc
@@ -81,6 +82,8 @@ class JsonDataRepository(DataRepository):
                     speed=int(entry["speed"]),
                     color=str(entry["color"]),
                     abilities=[str(aid) for aid in entry["abilities"]],
+                    max_mana=int(entry.get("max_mana", 0)),
+                    max_shield=int(entry.get("max_shield", 0)),
                 )
             except KeyError as exc:
                 raise DataLoadError(f"Character entry is missing required key: {exc}") from exc

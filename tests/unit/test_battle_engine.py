@@ -126,8 +126,11 @@ class TestCharacterEntity:
             color="#fff",
             abilities=[],
         )
-        char.take_damage(30)
+        result = char.take_damage(30)
         assert char.current_hp == 70
+        assert result["hp_damage"] == 30
+        assert result["shield_damage"] == 0
+        assert result["shield_broken"] is False
 
     def test_take_damage_cannot_go_below_zero(self) -> None:
         """HP cannot go below zero."""
@@ -141,8 +144,9 @@ class TestCharacterEntity:
             color="#fff",
             abilities=[],
         )
-        char.take_damage(999)
+        result = char.take_damage(999)
         assert char.current_hp == 0
+        assert result["hp_damage"] == 999
 
     def test_heal_caps_at_max_hp(self) -> None:
         """Healing cannot exceed max HP."""

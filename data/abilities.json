@@ -5,7 +5,8 @@
     "type": "normal",
     "damage": 20,
     "effect": null,
-    "cooldown": 0
+    "cooldown": 0,
+    "mana_cost": 0
   },
   {
     "id": "quick_jab",
@@ -13,7 +14,8 @@
     "type": "normal",
     "damage": 15,
     "effect": null,
-    "cooldown": 1
+    "cooldown": 1,
+    "mana_cost": 0
   },
   {
     "id": "fire_spin",
@@ -21,7 +23,8 @@
     "type": "special",
     "damage": 40,
     "effect": "burn",
-    "cooldown": 2
+    "cooldown": 2,
+    "mana_cost": 5
   },
   {
     "id": "lightning_stab",
@@ -29,7 +32,8 @@
     "type": "special",
     "damage": 30,
     "effect": null,
-    "cooldown": 1
+    "cooldown": 1,
+    "mana_cost": 3
   },
   {
     "id": "earthquake",
@@ -37,7 +41,8 @@
     "type": "ultimate",
     "damage": 35,
     "effect": null,
-    "cooldown": 3
+    "cooldown": 3,
+    "mana_cost": 0
   },
   {
     "id": "shield_bash",
@@ -45,6 +50,7 @@
     "type": "passive",
     "damage": 0,
     "effect": "shield",
-    "cooldown": 2
+    "cooldown": 2,
+    "mana_cost": 0
   }
 ]

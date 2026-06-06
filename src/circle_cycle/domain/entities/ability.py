@@ -14,6 +14,7 @@ class Ability:
 
     Fields:
         description: Short human-readable description shown in the UI preview.
+        mana_cost: Amount of mana required to use this ability.
     """
 
     id: str
@@ -23,3 +24,4 @@ class Ability:
     effect: StatusEffect | None
     cooldown: int
     description: str = ""
+    mana_cost: int = 0

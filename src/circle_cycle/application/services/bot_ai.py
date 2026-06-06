@@ -34,6 +34,7 @@ class BotAI:
             if ability_id in self.abilities
             and self.abilities[ability_id].type != AbilityType.NORMAL
             and bot.cooldowns.get(ability_id, 0) == 0
+            and bot.can_afford_ability(self.abilities[ability_id].mana_cost)
         ]
 
         if special_candidates:
@@ -63,18 +64,20 @@ class BotAI:
 
         Bot will only use Ultimate if the character's charge counter indicates it's ready.
         Prefer Special over Normal when charge is 1 to help unlock Ultimate.
+        Checks mana affordability before selecting abilities.
         """
         from circle_cycle.domain.value_objects.planned_action import PlannedAction
 
         plans: list[PlannedAction] = []
         for bot in [b for b in bot_team if b.is_alive()]:
-            # Build candidate lists
+            # Build candidate lists (mana-aware)
             special_candidates = [
                 self.abilities[ability_id]
                 for ability_id in bot.abilities
                 if ability_id in self.abilities
                 and self.abilities[ability_id].type == AbilityType.SPECIAL
                 and bot.cooldowns.get(ability_id, 0) == 0
+                and bot.can_afford_ability(self.abilities[ability_id].mana_cost)
             ]
 
             ultimate_candidate = next(
@@ -84,6 +87,7 @@ class BotAI:
                     if ability_id in self.abilities
                     and self.abilities[ability_id].type == AbilityType.ULTIMATE
                     and bot.cooldowns.get(ability_id, 0) == 0
+                    and bot.can_afford_ability(self.abilities[ability_id].mana_cost)
                 ),
                 None,
             )
@@ -99,18 +103,22 @@ class BotAI:
             )
 
             ability = None
-            # Use Ultimate only if charged
+            # Use Ultimate only if charged and affordable
             if ultimate_candidate is not None and getattr(bot, "is_ultimate_ready", False):
                 ability = ultimate_candidate
             else:
-                # Prefer Special when available; if bot has 1 charge prefer Special to help unlock
+                # Prefer Special when available and affordable
                 if special_candidates:
                     ability = max(special_candidates, key=lambda a: getattr(a, "damage", 0))
                 elif normal_candidate is not None:
                     ability = normal_candidate
 
             if ability is None:
-                continue
+                # Fallback: always use Normal Attack (free)
+                if normal_candidate is not None:
+                    ability = normal_candidate
+                else:
+                    continue
 
             if ability.type == AbilityType.ULTIMATE:
                 targets = [character for character in player_team if character.is_alive()]

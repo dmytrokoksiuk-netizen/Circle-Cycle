@@ -23,5 +23,9 @@ class AbilityOnCooldownError(DomainError):
     """Raised when an ability is still on cooldown."""
 
 
+class InsufficientManaError(DomainError):
+    """Raised when a character lacks mana to use an ability."""
+
+
 class DataLoadError(DomainError):
     """Raised when game data cannot be loaded."""

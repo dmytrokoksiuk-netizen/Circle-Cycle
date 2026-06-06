@@ -55,13 +55,45 @@ src/circle_cycle/
 ## Data
 
 Runtime JSON definitions live in `data/`:
-- `characters.json` — playable character stats and abilities
-- `abilities.json` — attack/skill definitions
+- `characters.json` — playable character stats, mana, and shield values
+- `abilities.json` — attack/skill definitions with mana costs
 - `cards.json` — buff cards for between-round selection
 
-## Execution order
+## Game Mechanics
 
-Battle execution order is now determined by team speed totals: the sum of speed for all living characters on a team. The faster team executes all planned actions first; ties favor the player.
+### Execution Order
+Battle execution order is determined by team speed totals: the sum of speed for all living characters on a team. The faster team executes all planned actions first; ties favor the player.
+
+### Mana System
+Each character has a mana pool (`max_mana`). Abilities have a `mana_cost` field:
+- **Normal Attack**: Always free (0 mana) — player always has a fallback.
+- **Special Attack**: Costs 3-5 mana depending on the ability.
+- **Ultimate**: Free (0 mana) — gated by charge mechanic instead.
+
+Mana regenerates by `MANA_REGEN_PER_TURN` (2) at the start of each new round, before the planning phase. If a character cannot afford a Special, the button is greyed out and the action is rejected.
+
+### Shield System
+Each character has a numeric shield (`max_shield`). Damage hits shield first, then HP:
+- Shield absorbs ALL ability damage types (normal, special, ultimate).
+- Status effect damage (burn) bypasses shield and hits HP directly.
+- Shield does NOT regenerate naturally.
+- When shield reaches 0, a "SHIELD BROKEN!" event fires.
+- The existing `StatusEffect.SHIELD` (one-shot block from Shield Bash) remains separate — it blocks all damage from one hit before numeric shield is checked.
+
+### Ultimate Charge
+Characters accumulate charges by using Special abilities (2 charges unlock Ultimate). Using Ultimate resets the counter.
+
+## Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `BURN_DAMAGE_PER_STACK` | 5 | Burn damage per stack per turn |
+| `TEAM_SIZE` | 3 | Characters per team |
+| `CARD_CHOICES_PER_ROUND` | 3 | Base card options per round |
+| `ATTACK_SCALING_DIVISOR` | 5 | Attack stat scaling for damage |
+| `ULTIMATE_CHARGE_REQUIRED` | 2 | Special uses to unlock Ultimate |
+| `MANA_REGEN_PER_TURN` | 2 | Mana restored at start of each round |
+| `NORMAL_ATTACK_MANA_COST` | 0 | Normal attacks are always free |
 
 ## Commands
 
