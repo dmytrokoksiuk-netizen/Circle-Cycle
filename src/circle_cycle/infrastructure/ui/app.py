@@ -46,8 +46,8 @@ class App:
         """Display the battle screen."""
         if self.engine is None:
             raise ValueError("Battle engine has not been initialized.")
-        self.battle_screen.refresh()
         self._show_frame(self.battle_screen)
+        self.battle_screen.on_enter()
 
     def show_card(self) -> None:
         """Display the card selection screen."""

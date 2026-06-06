@@ -137,3 +137,20 @@ Characters accumulate charges by using Special abilities (2 charges unlock Ultim
 | `make test` | Run tests with coverage |
 | `make lint` | Run ruff + mypy |
 | `make fmt` | Auto-format with ruff |
+
+## Building the Application
+
+```bash
+# 1. Install in development mode (from project root)
+pip install -e ".[dev]"
+# OR with uv:
+uv pip install -e ".[dev]"
+
+# 2. Run the game
+python -m circle_cycle
+
+# 3. Run tests (verify everything works)
+python -m pytest --cov=src --cov-report=term-missing
+```
+
+The game requires Python 3.12+ and uses only Tkinter (built-in) — no external runtime dependencies.

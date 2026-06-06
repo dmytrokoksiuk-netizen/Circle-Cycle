@@ -166,5 +166,4 @@ class CardScreen(tk.Frame):
 
         log = self.app.engine.apply_card_choice(self.selected_card, self.selected_target)
         self.app.battle_screen.log_messages.append(log)
-        self.app.battle_screen.refresh()
         self.app.show_battle()

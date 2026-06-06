@@ -112,6 +112,16 @@ class BattleScreen(tk.Frame):
         self._update_turn_label()
         self._refresh_log()
 
+    def on_enter(self) -> None:
+        """Called when the battle screen becomes visible. Auto-plays bot turns if needed."""
+        self.refresh()
+        if self.app.engine is None:
+            return
+        # If the current character is a bot, auto-play their turns
+        if self.app.engine.get_current_character() in self.app.engine.bot_team:
+            self._run_bot_turns()
+            self.refresh()
+
     def _update_turn_label(self) -> None:
         """Update the turn indicator text."""
         if self.app.engine is None:
@@ -284,31 +294,30 @@ class BattleScreen(tk.Frame):
             self.app.show_card()
             return
 
-        if engine.get_current_character() in engine.bot_team:
-            self._play_bot_turn()
+        # Auto-play ALL consecutive bot turns
+        self._run_bot_turns()
 
         self.refresh()
 
-    def _play_bot_turn(self) -> None:
-        """Run the bot action and advance the turn."""
+    def _run_bot_turns(self) -> None:
+        """Auto-play bot turns until a player character's turn or round ends."""
         if self.app.engine is None:
             return
 
         engine = self.app.engine
-        logs = engine.bot_turn()
-        self._append_logs(logs)
-        winner = engine.check_winner()
-        if winner is not None:
-            self._append_logs([f"{winner.title()} wins the battle!"])
-            self.app.show_select()
-            return
+        while engine.get_current_character() in engine.bot_team:
+            logs = engine.bot_turn()
+            self._append_logs(logs)
+            winner = engine.check_winner()
+            if winner is not None:
+                self._append_logs([f"{winner.title()} wins the battle!"])
+                self.app.show_select()
+                return
 
-        round_ended = engine.end_turn()
-        if round_ended:
-            self.app.show_card()
-            return
-
-        self.refresh()
+            round_ended = engine.end_turn()
+            if round_ended:
+                self.app.show_card()
+                return
 
     def _append_logs(self, logs: list[str]) -> None:
         """Append new log lines and keep only the most recent six events.
