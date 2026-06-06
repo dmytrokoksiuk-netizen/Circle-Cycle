@@ -247,31 +247,53 @@ class BattleEngine:
         return logs
 
     def get_action_targets(self, attacker: Character, ability: Ability) -> list[Character]:
-        """Return the target list that should be used for the action."""
+        """Return the target list that should be used for the action based on target_type."""
+        from circle_cycle.domain.enums.target_type import TargetType
+
         if attacker in self.player_team:
-            team = self.bot_team
+            enemy_team = self.bot_team
+            ally_team = self.player_team
         elif attacker in self.bot_team:
-            team = self.player_team
+            enemy_team = self.player_team
+            ally_team = self.bot_team
         else:
             raise InvalidTargetError("Attacker is not part of the current battle.")
 
-        alive_targets = [character for character in team if character.is_alive()]
-        if ability.type == AbilityType.ULTIMATE:
-            return alive_targets
+        target_type = getattr(ability, "target_type", TargetType.SINGLE_ENEMY)
 
-        if not alive_targets:
-            return []
-
-        lowest_hp_target = min(alive_targets, key=lambda character: character.current_hp)
-        return [lowest_hp_target]
+        if target_type == TargetType.ALL_ENEMIES:
+            return [c for c in enemy_team if c.is_alive()]
+        elif target_type == TargetType.ALL_ALLIES:
+            return [c for c in ally_team if c.is_alive()]
+        elif target_type == TargetType.SINGLE_ALLY:
+            alive_allies = [c for c in ally_team if c.is_alive()]
+            if not alive_allies:
+                return []
+            # Default: lowest HP ally (for heals) or highest ATK ally (for buffs)
+            if ability.heal_amount > 0:
+                return [min(alive_allies, key=lambda c: c.current_hp)]
+            return [max(alive_allies, key=lambda c: c.effective_attack)]
+        elif target_type == TargetType.SELF:
+            return [attacker] if attacker.is_alive() else []
+        else:
+            # SINGLE_ENEMY (default)
+            alive_targets = [c for c in enemy_team if c.is_alive()]
+            if not alive_targets:
+                return []
+            # If shield_pierce, prefer target with most shield
+            if ability.shield_pierce or ability.shield_destroy > 0:
+                return [max(alive_targets, key=lambda c: c.shield)]
+            lowest_hp_target = min(alive_targets, key=lambda c: c.current_hp)
+            return [lowest_hp_target]
 
     def _calculate_team_speed(self, characters: list[Character]) -> int:
-        """Return the total speed of all LIVING characters in the provided list.
+        """Return the total effective speed of all LIVING characters in the provided list.
 
         This is a pure calculation with no side effects. Characters with
-        current_hp == 0 are considered dead and excluded.
+        current_hp == 0 are considered dead and excluded. Uses effective_speed
+        which accounts for active buffs and debuffs.
         """
-        return sum(c.speed for c in characters if c.is_alive())
+        return sum(c.effective_speed for c in characters if c.is_alive())
 
     def execute_action(
         self, attacker: Character, ability: Ability, targets: list[Character]
@@ -315,6 +337,7 @@ class BattleEngine:
         for character in [*self.player_team, *self.bot_team]:
             character.tick_cooldowns()
             character.tick_status_effects()
+            character.tick_buffs_debuffs()
 
         self.current_turn_index += 1
 

@@ -19,6 +19,14 @@ class DamageResult(TypedDict):
     shield_broken: bool
 
 
+class ActiveEffect(TypedDict):
+    """A timed stat modifier (buff or debuff)."""
+
+    stat: str
+    amount: int
+    turns: int
+
+
 @dataclass
 class Character:
     """Represents a playable or enemy character in the battle system."""
@@ -33,11 +41,14 @@ class Character:
     abilities: list[str]
     max_mana: int = 0
     max_shield: int = 0
+    role: str = "dps"
     current_hp: int = field(init=False)
     mana: int = field(init=False)
     shield: int = field(init=False)
     status_effects: list[StatusEffect] = field(default_factory=list)
     cooldowns: dict[str, int] = field(default_factory=dict)
+    active_buffs: list[ActiveEffect] = field(default_factory=list)
+    active_debuffs: list[ActiveEffect] = field(default_factory=list)
     # Number of times Special has been used (persists across turns within a battle)
     special_use_count: int = 0
 
@@ -47,6 +58,51 @@ class Character:
         self.mana = self.max_mana
         self.shield = self.max_shield
         self.cooldowns = {ability_id: 0 for ability_id in self.abilities}
+
+    # --- Effective stat properties (base + buffs - debuffs) ---
+    @property
+    def effective_attack(self) -> int:
+        """Return attack stat including active buffs and debuffs."""
+        buff_total = sum(e["amount"] for e in self.active_buffs if e["stat"] == "attack")
+        debuff_total = sum(e["amount"] for e in self.active_debuffs if e["stat"] == "attack")
+        return max(0, self.attack + buff_total - debuff_total)
+
+    @property
+    def effective_speed(self) -> int:
+        """Return speed stat including active buffs and debuffs."""
+        buff_total = sum(e["amount"] for e in self.active_buffs if e["stat"] == "speed")
+        debuff_total = sum(e["amount"] for e in self.active_debuffs if e["stat"] == "speed")
+        return max(1, self.speed + buff_total - debuff_total)
+
+    def apply_buff(self, stat: str, amount: int, duration: int) -> None:
+        """Apply a timed buff to this character."""
+        self.active_buffs.append({"stat": stat, "amount": amount, "turns": duration})
+
+    def apply_debuff(self, stat: str, amount: int, duration: int) -> None:
+        """Apply a timed debuff to this character."""
+        self.active_debuffs.append({"stat": stat, "amount": amount, "turns": duration})
+
+    def tick_buffs_debuffs(self) -> list[str]:
+        """Decrement durations and remove expired effects. Returns expiration log lines."""
+        logs: list[str] = []
+        remaining_buffs: list[ActiveEffect] = []
+        for buff in self.active_buffs:
+            buff["turns"] -= 1
+            if buff["turns"] <= 0:
+                logs.append(f"{self.name}'s {buff['stat'].upper()} +{buff['amount']} buff expired.")
+            else:
+                remaining_buffs.append(buff)
+        self.active_buffs = remaining_buffs
+
+        remaining_debuffs: list[ActiveEffect] = []
+        for debuff in self.active_debuffs:
+            debuff["turns"] -= 1
+            if debuff["turns"] <= 0:
+                logs.append(f"{self.name}'s {debuff['stat'].upper()} -{debuff['amount']} debuff expired.")
+            else:
+                remaining_debuffs.append(debuff)
+        self.active_debuffs = remaining_debuffs
+        return logs
 
     def take_damage(self, amount: int) -> DamageResult:
         """Apply damage to the character. Shield absorbs first, then HP.
@@ -86,6 +142,14 @@ class Character:
         actual = min(self.current_hp, amount)
         self.current_hp = max(0, self.current_hp - amount)
         return actual
+
+    def restore_shield(self, amount: int) -> int:
+        """Restore shield points, capped at max_shield. Returns amount restored."""
+        if amount <= 0 or self.max_shield == 0:
+            return 0
+        old = self.shield
+        self.shield = min(self.max_shield, self.shield + amount)
+        return self.shield - old
 
     def heal(self, amount: int) -> int:
         """Heal the character and return the resulting current HP."""

@@ -44,23 +44,24 @@ class SelectScreen(tk.Frame):
         grid.pack(fill="both", expand=True)
 
         for index, character in enumerate(self.app.character_pool.values()):
-            row = index // 3
-            column = index % 3
+            row = index // 4
+            column = index % 4
             button_frame = tk.Frame(grid, bg="#111827", bd=2, relief="solid")
-            button_frame.grid(row=row, column=column, padx=12, pady=12, sticky="nsew")
+            button_frame.grid(row=row, column=column, padx=8, pady=8, sticky="nsew")
             self.character_buttons[character.id] = button_frame
 
+            role = getattr(character, "role", "dps").upper()
             button = tk.Button(
                 button_frame,
                 text=(
                     f"{character.name}\n"
-                    f"HP: {character.hp}\n"
-                    f"ATK: {character.attack}\n"
-                    f"SPD: {character.speed}"
+                    f"[{role}]\n"
+                    f"HP:{character.hp} ATK:{character.attack}\n"
+                    f"SPD:{character.speed} MP:{character.max_mana}"
                 ),
                 bg=character.color,
                 fg="white",
-                font=("Arial", 12, "bold"),
+                font=("Arial", 10, "bold"),
                 relief="flat",
                 activebackground=character.color,
                 command=self._make_toggle_command(character.id),

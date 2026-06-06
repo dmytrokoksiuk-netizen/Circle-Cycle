@@ -221,13 +221,41 @@ def draw_circle_character(
     )
     bar_y += 16
 
-    # Character name
+    # Buff/debuff indicators (compact)
+    buff_texts = []
+    for buff in character.active_buffs:
+        buff_texts.append(f"+{buff['amount']}{buff['stat'][:3].upper()}({buff['turns']}t)")
+    for debuff in character.active_debuffs:
+        buff_texts.append(f"-{debuff['amount']}{debuff['stat'][:3].upper()}({debuff['turns']}t)")
+    if buff_texts:
+        indicator = " ".join(buff_texts[:3])  # show max 3 to fit
+        canvas.create_text(
+            x,
+            bar_y + 2,
+            text=indicator,
+            fill="#a78bfa",
+            font=("Arial", 7),
+        )
+        bar_y += 12
+
+    # Character name + role
+    role_colors = {"dps": "#ef4444", "healer": "#10b981", "buffer": "#8b5cf6",
+                   "debuffer": "#a855f7", "breaker": "#f97316"}
+    role = getattr(character, "role", "dps")
     canvas.create_text(
         x,
         bar_y + 4,
         text=character.name,
         fill="white",
         font=("Arial", 10, "bold"),
+    )
+    bar_y += 14
+    canvas.create_text(
+        x,
+        bar_y + 2,
+        text=role.upper(),
+        fill=role_colors.get(role, "#94a3b8"),
+        font=("Arial", 7, "bold"),
     )
 
     if not character.is_alive():

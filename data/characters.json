@@ -9,6 +9,7 @@
     "color": "#14b8a6",
     "max_mana": 12,
     "max_shield": 30,
+    "role": "dps",
     "abilities": ["punch", "fire_spin", "earthquake", "shield_bash"]
   },
   {
@@ -21,6 +22,7 @@
     "color": "#f59e0b",
     "max_mana": 10,
     "max_shield": 20,
+    "role": "dps",
     "abilities": ["quick_jab", "lightning_stab", "earthquake", "shield_bash"]
   },
   {
@@ -33,6 +35,59 @@
     "color": "#64748b",
     "max_mana": 8,
     "max_shield": 50,
+    "role": "dps",
     "abilities": ["punch", "lightning_stab", "earthquake", "shield_bash"]
+  },
+  {
+    "id": "sage",
+    "name": "Sage",
+    "size": "medium",
+    "hp": 130,
+    "attack": 12,
+    "speed": 14,
+    "color": "#10b981",
+    "max_mana": 14,
+    "max_shield": 25,
+    "role": "healer",
+    "abilities": ["staff_strike", "healing_light", "divine_restoration"]
+  },
+  {
+    "id": "drum",
+    "name": "Drum",
+    "size": "medium",
+    "hp": 110,
+    "attack": 16,
+    "speed": 18,
+    "color": "#8b5cf6",
+    "max_mana": 12,
+    "max_shield": 30,
+    "role": "buffer",
+    "abilities": ["drum_bash", "war_drums", "battle_anthem"]
+  },
+  {
+    "id": "hex",
+    "name": "Hex",
+    "size": "small",
+    "hp": 90,
+    "attack": 18,
+    "speed": 22,
+    "color": "#a855f7",
+    "max_mana": 11,
+    "max_shield": 20,
+    "role": "debuffer",
+    "abilities": ["hex_bolt", "curse", "mass_plague"]
+  },
+  {
+    "id": "spike",
+    "name": "Spike",
+    "size": "medium",
+    "hp": 95,
+    "attack": 24,
+    "speed": 16,
+    "color": "#ef4444",
+    "max_mana": 10,
+    "max_shield": 15,
+    "role": "breaker",
+    "abilities": ["spike_slash", "shield_crush", "shatter_all"]
   }
 ]

@@ -55,9 +55,21 @@ src/circle_cycle/
 ## Data
 
 Runtime JSON definitions live in `data/`:
-- `characters.json` — playable character stats, mana, and shield values
-- `abilities.json` — attack/skill definitions with mana costs
+- `characters.json` — 7 playable characters with stats, mana, shield, and role
+- `abilities.json` — attack/skill definitions with mana costs, targeting, and effects
 - `cards.json` — buff cards for between-round selection
+
+## Characters
+
+| Name | Role | HP | ATK | DEF | SPD | Mana | Shield |
+|------|------|-----|-----|-----|-----|------|--------|
+| Nova | DPS | 115 | 14 | 12 | 15 | 10 | 20 |
+| Stone | DPS | 150 | 16 | 20 | 8 | 8 | 50 |
+| Ace | DPS | 85 | 12 | 10 | 18 | 12 | 30 |
+| Sage | Healer | 130 | 12 | 18 | 14 | 14 | 25 |
+| Drum | Buffer | 110 | 16 | 14 | 18 | 12 | 30 |
+| Hex | Debuffer | 90 | 18 | 10 | 22 | 11 | 20 |
+| Spike | Breaker | 95 | 24 | 12 | 16 | 10 | 15 |
 
 ## Game Mechanics
 
@@ -79,6 +91,27 @@ Each character has a numeric shield (`max_shield`). Damage hits shield first, th
 - Shield does NOT regenerate naturally.
 - When shield reaches 0, a "SHIELD BROKEN!" event fires.
 - The existing `StatusEffect.SHIELD` (one-shot block from Shield Bash) remains separate — it blocks all damage from one hit before numeric shield is checked.
+
+### Targeting Types
+Abilities have a `target_type` field (TargetType enum):
+- `single_enemy` — targets one enemy (default for attacks)
+- `all_enemies` — hits all enemies (AoE damage/debuffs)
+- `single_ally` — targets one friendly character (heals/buffs)
+- `all_allies` — affects all allies (team heals/buffs)
+- `self` — targets self only (future use)
+
+### Buff/Debuff System
+Abilities can apply temporary stat modifiers:
+- **Buffs** increase a stat (attack, speed, defense) for N turns.
+- **Debuffs** decrease a stat for N turns.
+- Active effects are tracked per character and tick down each turn.
+- Effective stats = base stat + sum(buffs) - sum(debuffs).
+- Minimum effective stat is 0 (debuffs cannot go negative).
+
+### Shield Pierce / Destroy
+Some abilities (Spike's kit) interact specially with shields:
+- `shield_pierce: true` — damage bypasses shield and goes directly to HP.
+- `shield_destroy: N` — reduces target's shield by N points (can stack with damage).
 
 ### Ultimate Charge
 Characters accumulate charges by using Special abilities (2 charges unlock Ultimate). Using Ultimate resets the counter.

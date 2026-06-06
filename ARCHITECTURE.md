@@ -47,9 +47,9 @@ User Click → Screen (infrastructure/ui)
 ### Domain (Layer 1)
 Pure business rules. No imports from infrastructure or application.
 - **Entities**: `Character`, `Ability`, `Card` — plain dataclasses with behavior
-  - `Character`: id, name, size, hp, current_hp, attack, speed, color, abilities, max_mana, mana, max_shield, shield, status_effects, cooldowns, special_use_count
-  - `Ability`: id, name, type, damage, effect, cooldown, description, mana_cost
-- **Enums**: `AbilityType`, `CharacterSize`, `StatusEffect`, `CardStat`
+  - `Character`: id, name, size, hp, current_hp, attack, speed, color, abilities, max_mana, mana, max_shield, shield, role, active_buffs, active_debuffs, status_effects, cooldowns, special_use_count
+  - `Ability`: id, name, type, damage, effect, cooldown, description, mana_cost, target_type, heal_amount, shield_restore, shield_pierce, shield_destroy, buff_stat, buff_amount, buff_duration, debuff_stat, debuff_amount, debuff_duration
+- **Enums**: `AbilityType`, `CharacterSize`, `StatusEffect`, `CardStat`, `TargetType`
 - **Interfaces**: `DataRepository` ABC — port for data loading
 - **Value Objects**: `CardEffect` — immutable frozen dataclass
 - **Exceptions**: `BattleNotStartedError`, `InvalidActionError`, `InsufficientManaError`, etc.
@@ -57,9 +57,9 @@ Pure business rules. No imports from infrastructure or application.
 
 ### Application (Layer 2)
 Orchestration and use cases. Depends only on domain.
-- **BattleEngine**: Manages turn order, card phases, win conditions
-- **BotAI**: Heuristic-based AI opponent decisions
-- **AbilityResolver**: Resolves ability effects against targets
+- **BattleEngine**: Manages turn order, card phases, win conditions, buff/debuff ticking
+- **BotAI**: Heuristic-based AI with role-aware targeting (heal allies, debuff enemies, break shields)
+- **AbilityResolver**: Resolves ability effects — damage, heal, buff, debuff, shield pierce/destroy
 - **CardApplicator**: Applies card buffs to characters
 
 ### Infrastructure (Layer 3)

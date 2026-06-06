@@ -14,6 +14,7 @@ from circle_cycle.domain.enums.ability_type import AbilityType
 from circle_cycle.domain.enums.card_stat import CardStat
 from circle_cycle.domain.enums.character_size import CharacterSize
 from circle_cycle.domain.enums.status_effect import StatusEffect
+from circle_cycle.domain.enums.target_type import TargetType
 from circle_cycle.domain.exceptions.battle import DataLoadError
 from circle_cycle.domain.interfaces.data_repository import DataRepository
 from circle_cycle.domain.value_objects.card_effect import CardEffect
@@ -50,6 +51,9 @@ class JsonDataRepository(DataRepository):
                 if effect_raw is not None:
                     effect = StatusEffect(str(effect_raw))
 
+                target_type_raw = entry.get("target_type", "single_enemy")
+                target_type = TargetType(str(target_type_raw))
+
                 ability = Ability(
                     id=str(entry["id"]),
                     name=str(entry["name"]),
@@ -57,7 +61,19 @@ class JsonDataRepository(DataRepository):
                     damage=int(entry["damage"]),
                     effect=effect,
                     cooldown=int(entry["cooldown"]),
+                    description=str(entry.get("description", "")),
                     mana_cost=int(entry.get("mana_cost", 0)),
+                    target_type=target_type,
+                    heal_amount=int(entry.get("heal_amount", 0)),
+                    shield_restore=int(entry.get("shield_restore", 0)),
+                    shield_pierce=bool(entry.get("shield_pierce", False)),
+                    shield_destroy=int(entry.get("shield_destroy", 0)),
+                    buff_stat=entry.get("buff_stat"),
+                    buff_amount=int(entry.get("buff_amount", 0)),
+                    buff_duration=int(entry.get("buff_duration", 0)),
+                    debuff_stat=entry.get("debuff_stat"),
+                    debuff_amount=int(entry.get("debuff_amount", 0)),
+                    debuff_duration=int(entry.get("debuff_duration", 0)),
                 )
             except KeyError as exc:
                 raise DataLoadError(f"Ability entry is missing required key: {exc}") from exc
@@ -84,6 +100,7 @@ class JsonDataRepository(DataRepository):
                     abilities=[str(aid) for aid in entry["abilities"]],
                     max_mana=int(entry.get("max_mana", 0)),
                     max_shield=int(entry.get("max_shield", 0)),
+                    role=str(entry.get("role", "dps")),
                 )
             except KeyError as exc:
                 raise DataLoadError(f"Character entry is missing required key: {exc}") from exc

@@ -5,6 +5,7 @@ from __future__ import annotations
 from circle_cycle.domain.entities.ability import Ability
 from circle_cycle.domain.entities.character import Character
 from circle_cycle.domain.enums.ability_type import AbilityType
+from circle_cycle.domain.enums.target_type import TargetType
 
 
 class BotAI:
@@ -13,6 +14,36 @@ class BotAI:
     def __init__(self, abilities: dict[str, Ability]) -> None:
         self.abilities = abilities
 
+    def _resolve_targets(
+        self, bot: Character, ability: Ability, bot_team: list[Character], player_team: list[Character]
+    ) -> list[Character]:
+        """Resolve target list for an ability based on its target_type."""
+        target_type = getattr(ability, "target_type", TargetType.SINGLE_ENEMY)
+
+        if target_type == TargetType.ALL_ENEMIES:
+            return [c for c in player_team if c.is_alive()]
+        elif target_type == TargetType.ALL_ALLIES:
+            return [c for c in bot_team if c.is_alive()]
+        elif target_type == TargetType.SINGLE_ALLY:
+            alive_allies = [c for c in bot_team if c.is_alive()]
+            if not alive_allies:
+                return []
+            # Heal: target lowest HP ally; Buff: target highest ATK ally
+            if ability.heal_amount > 0:
+                return [min(alive_allies, key=lambda c: c.current_hp)]
+            return [max(alive_allies, key=lambda c: c.effective_attack)]
+        elif target_type == TargetType.SELF:
+            return [bot] if bot.is_alive() else []
+        else:
+            # SINGLE_ENEMY
+            alive_enemies = [c for c in player_team if c.is_alive()]
+            if not alive_enemies:
+                return []
+            # Shield pierce/destroy: target enemy with most shield
+            if ability.shield_pierce or ability.shield_destroy > 0:
+                return [max(alive_enemies, key=lambda c: c.shield)]
+            return [min(alive_enemies, key=lambda c: (c.current_hp, c.name))]
+
     def choose_action(
         self, bot_team: list[Character], player_team: list[Character]
     ) -> tuple[Character, Ability, list[Character]]:
@@ -20,11 +51,6 @@ class BotAI:
         alive_bots = [character for character in bot_team if character.is_alive()]
         if not alive_bots:
             raise ValueError("Bot team has no alive characters.")
-
-        target = min(
-            [character for character in player_team if character.is_alive()],
-            key=lambda character: (character.current_hp, character.name),
-        )
 
         bot = max(alive_bots, key=lambda character: character.speed)
 
@@ -53,10 +79,7 @@ class BotAI:
         if ability is None:
             raise ValueError(f"No valid ability found for bot character {bot.name}.")
 
-        targets = [target]
-        if ability.type == AbilityType.ULTIMATE:
-            targets = [character for character in player_team if character.is_alive()]
-
+        targets = self._resolve_targets(bot, ability, bot_team, player_team)
         return bot, ability, targets
 
     def generate_plan(self, bot_team: list[Character], player_team: list[Character]) -> list["PlannedAction"]:
@@ -65,6 +88,7 @@ class BotAI:
         Bot will only use Ultimate if the character's charge counter indicates it's ready.
         Prefer Special over Normal when charge is 1 to help unlock Ultimate.
         Checks mana affordability before selecting abilities.
+        Uses target_type to determine proper targeting (ally vs enemy).
         """
         from circle_cycle.domain.value_objects.planned_action import PlannedAction
 
@@ -109,7 +133,14 @@ class BotAI:
             else:
                 # Prefer Special when available and affordable
                 if special_candidates:
-                    ability = max(special_candidates, key=lambda a: getattr(a, "damage", 0))
+                    # For healers: prefer heal if any ally is below 60% HP
+                    heal_ability = next((a for a in special_candidates if a.heal_amount > 0), None)
+                    if heal_ability:
+                        hurt_allies = [c for c in bot_team if c.is_alive() and c.current_hp < c.hp * 0.6]
+                        if hurt_allies:
+                            ability = heal_ability
+                    if ability is None:
+                        ability = max(special_candidates, key=lambda a: getattr(a, "damage", 0))
                 elif normal_candidate is not None:
                     ability = normal_candidate
 
@@ -120,15 +151,9 @@ class BotAI:
                 else:
                     continue
 
-            if ability.type == AbilityType.ULTIMATE:
-                targets = [character for character in player_team if character.is_alive()]
-            else:
-                alive_players = [c for c in player_team if c.is_alive()]
-                if not alive_players:
-                    targets = []
-                else:
-                    target = min(alive_players, key=lambda c: (c.current_hp, c.name))
-                    targets = [target]
+            targets = self._resolve_targets(bot, ability, bot_team, player_team)
+            if not targets:
+                continue
 
             plans.append(PlannedAction(actor=bot, ability=ability, targets=targets))
 

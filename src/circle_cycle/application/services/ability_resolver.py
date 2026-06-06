@@ -7,14 +7,15 @@ from circle_cycle.domain.entities.ability import Ability
 from circle_cycle.domain.entities.character import Character
 from circle_cycle.domain.enums.ability_type import AbilityType
 from circle_cycle.domain.enums.status_effect import StatusEffect
+from circle_cycle.domain.enums.target_type import TargetType
 
 
 def resolve_ability(attacker: Character, targets: list[Character], ability: Ability) -> list[str]:
     """Resolve an ability against the provided targets and return a log.
 
-    This function also updates the attacker's special-use charge counter when a
-    Special ability successfully applies (damage or effect) and resets the
-    counter after an Ultimate is used.
+    Handles damage, healing, buffs, debuffs, shield pierce, and shield destroy.
+    Updates the attacker's special-use charge counter for Special abilities
+    and resets the counter after an Ultimate is used.
 
     Mana is expected to have been spent before calling this function.
     """
@@ -22,10 +23,60 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
         return [f"{attacker.name} used {ability.name}, but no targets were available."]
 
     logs: list[str] = []
-    effective_damage = max(0, ability.damage + attacker.attack // ATTACK_SCALING_DIVISOR)
+    applied = False
 
-    applied = False  # whether the ability actually affected anyone (damage/effect)
+    # --- Heal ---
+    if ability.heal_amount > 0:
+        for target in targets:
+            old_hp = target.current_hp
+            target.heal(ability.heal_amount)
+            healed = target.current_hp - old_hp
+            if healed > 0:
+                applied = True
+                logs.append(f"{attacker.name} heals {target.name} for {healed} HP with {ability.name}.")
+            else:
+                logs.append(f"{target.name} is already at full HP.")
 
+    # --- Shield Restore ---
+    if ability.shield_restore > 0:
+        for target in targets:
+            restored = target.restore_shield(ability.shield_restore)
+            if restored > 0:
+                applied = True
+                logs.append(f"{target.name} restores {restored} shield from {ability.name}.")
+
+    # --- Buff ---
+    if ability.buff_stat and ability.buff_amount > 0:
+        for target in targets:
+            target.apply_buff(ability.buff_stat, ability.buff_amount, ability.buff_duration)
+            applied = True
+            logs.append(
+                f"{target.name} gains +{ability.buff_amount} {ability.buff_stat.upper()} "
+                f"for {ability.buff_duration} turns from {ability.name}."
+            )
+
+    # --- Debuff ---
+    if ability.debuff_stat and ability.debuff_amount > 0:
+        for target in targets:
+            target.apply_debuff(ability.debuff_stat, ability.debuff_amount, ability.debuff_duration)
+            applied = True
+            logs.append(
+                f"{target.name} suffers -{ability.debuff_amount} {ability.debuff_stat.upper()} "
+                f"for {ability.debuff_duration} turns from {ability.name}."
+            )
+
+    # --- Shield Destroy ---
+    if ability.shield_destroy > 0:
+        for target in targets:
+            destroyed = min(target.shield, ability.shield_destroy)
+            if destroyed > 0:
+                target.shield -= destroyed
+                applied = True
+                logs.append(f"{target.name} loses {destroyed} shield from {ability.name}!")
+            if target.shield == 0 and destroyed > 0:
+                logs.append(f"{target.name}'s shield is broken!")
+
+    # --- Status Effects (burn, one-shot shield) ---
     if ability.effect == StatusEffect.SHIELD:
         for target in targets:
             target.status_effects.append(StatusEffect.SHIELD)
@@ -40,34 +91,40 @@ def resolve_ability(attacker: Character, targets: list[Character], ability: Abil
             )
             applied = True
 
-    if ability.type == AbilityType.ULTIMATE and len(targets) > 1:
-        for target in targets:
-            result = target.take_damage(effective_damage)
-            if result["shield_damage"] > 0 or result["hp_damage"] > 0:
-                applied = True
-            log_line = _format_damage_log(attacker, target, ability, effective_damage, result)
-            logs.append(log_line)
-            if result["shield_broken"]:
-                logs.append(f"{target.name}'s shield is broken!")
-        # Reset ultimate charge for attacker
+    # --- Damage ---
+    if ability.damage > 0:
+        effective_damage = max(0, ability.damage + attacker.effective_attack // ATTACK_SCALING_DIVISOR)
+
+        if ability.shield_pierce:
+            # Shield-piercing: damage goes directly to HP
+            for target in targets:
+                dealt = target.take_direct_damage(effective_damage)
+                if dealt > 0:
+                    applied = True
+                logs.append(
+                    f"{attacker.name} pierces {target.name} for {effective_damage} damage "
+                    f"with {ability.name} (ignores shield)."
+                )
+        else:
+            # Normal damage flow
+            for target in targets:
+                result = target.take_damage(effective_damage)
+                if result["shield_damage"] > 0 or result["hp_damage"] > 0:
+                    applied = True
+                log_line = _format_damage_log(attacker, target, ability, effective_damage, result)
+                logs.append(log_line)
+                if result["shield_broken"]:
+                    logs.append(f"{target.name}'s shield is broken!")
+
+    # --- Ultimate charge management ---
+    if ability.type == AbilityType.ULTIMATE:
         attacker.reset_special_count()
         logs.append(f"{attacker.name} unleashes {ability.name}! Charge reset.")
-        return logs
-
-    for target in targets:
-        result = target.take_damage(effective_damage)
-        if result["shield_damage"] > 0 or result["hp_damage"] > 0:
-            applied = True
-        log_line = _format_damage_log(attacker, target, ability, effective_damage, result)
-        logs.append(log_line)
-        if result["shield_broken"]:
-            logs.append(f"{target.name}'s shield is broken!")
-
-    # After resolving, update special-use charge for Special abilities
-    if ability.type == AbilityType.SPECIAL and applied:
+    elif ability.type == AbilityType.SPECIAL and applied:
         attacker.increment_special_count()
         logs.append(
-            f"{attacker.name} uses {ability.name}! Ultimate charge: {attacker.special_use_count}/{ULTIMATE_CHARGE_REQUIRED}"
+            f"{attacker.name} uses {ability.name}! Ultimate charge: "
+            f"{attacker.special_use_count}/{ULTIMATE_CHARGE_REQUIRED}"
         )
         if attacker.is_ultimate_ready:
             logs.append(f"{attacker.name}'s Ultimate is now READY!")
